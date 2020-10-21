@@ -259,10 +259,13 @@ SOKOL_API_DECL void simgui_glfw_keycallback(GLFWwindow* win,
                                             int scancode,
                                             int action,
                                             int mods);
-SOKOL_API_DECL void simgui_glfw_charcallback(GLFWwindow* win, unsigned int c);
+SOKOL_API_DECL void simgui_glfw_charmodscallback(GLFWwindow* win,
+                                                 unsigned int c);
 SOKOL_API_DECL void simgui_glfw_mouseposcallback(GLFWwindow* win,
                                                  double xpos,
                                                  double ypos);
+SOKOL_API_DECL void simgui_glfw_cursorentercallback(GLFWwindow* win,
+                                                    int entered);
 #endif
 SOKOL_API_DECL void simgui_shutdown(void);
 
@@ -2125,8 +2128,9 @@ SOKOL_API_IMPL void simgui_setup(const simgui_desc_t* desc) {
   glfwSetMouseButtonCallback(_simgui.win, simgui_glfw_mousebuttoncallback);
   glfwSetScrollCallback(_simgui.win, simgui_glfw_scrollcallback);
   glfwSetKeyCallback(_simgui.win, simgui_glfw_keycallback);
-  glfwSetCharCallback(_simgui.win, simgui_glfw_charcallback);
+  glfwSetCharModsCallback(_simgui.win, simgui_glfw_charmodscallback);
   glfwSetCursorPosCallback(_simgui.win, simgui_glfw_mouseposcallback);
+  glfwSetCursorEnterCallback(_simgui.win, simgui_glfw_cursorentercallback);
 #endif
 #if defined(SOKOL_IMGUI_SOKOL_APP) || defined(SOKOL_IMGUI_GLFW)
   io->SetClipboardTextFn = _simgui_set_clipboard;
@@ -2301,6 +2305,13 @@ _SOKOL_PRIVATE void _simgui_set_imgui_modifiers(ImGuiIO* io, uint32_t mods) {
   io->KeyShift = (mods & SAPP_MODIFIER_SHIFT) != 0;
   io->KeySuper = (mods & SAPP_MODIFIER_SUPER) != 0;
 }
+#elif defined(SOKOL_IMGUI_GLFW)
+_SOKOL_PRIVATE void _simgui_set_imgui_modifiers(ImGuiIO* io, uint32_t mods) {
+  io->KeyAlt = (mods & GLFW_MOD_ALT) != 0;
+  io->KeyCtrl = (mods & GLFW_MOD_CONTROL) != 0;
+  io->KeyShift = (mods & GLFW_MOD_SHIFT) != 0;
+  io->KeySuper = (mods & GLFW_MOD_SUPER) != 0;
+}
 #endif
 
 #if defined(SOKOL_IMGUI_GLFW)
@@ -2358,11 +2369,11 @@ SOKOL_API_IMPL void simgui_new_frame(int width, int height, double delta_time) {
   for (int i = 0; i < SIMGUI_MAX_KEY_VALUE; i++) {
     if (_simgui.keys_down[i]) {
       io->KeysDown[i] = true;
-      //   _simgui_set_imgui_modifiers(io, _simgui.keys_down[i]);
+      _simgui_set_imgui_modifiers(io, _simgui.keys_down[i]);
       _simgui.keys_down[i] = 0;
     } else if (_simgui.keys_up[i]) {
       io->KeysDown[i] = false;
-      //   _simgui_set_imgui_modifiers(io, _simgui.keys_up[i]);
+      _simgui_set_imgui_modifiers(io, _simgui.keys_up[i]);
       _simgui.keys_up[i] = 0;
     }
   }
@@ -2608,20 +2619,113 @@ SOKOL_API_IMPL bool simgui_handle_event(const sapp_event* ev) {
   return io->WantCaptureKeyboard || io->WantCaptureMouse;
 }
 #elif defined(SOKOL_IMGUI_GLFW)
-SOKOL_API_DECL void simgui_glfw_mousebuttoncallback(int button,
-                                                    int action,
-                                                    int mods) {}
-SOKOL_API_DECL void simgui_glfw_scrollcallback(double xoffset, double yoffset) {
-
+_SOKOL_PRIVATE bool _simgui_is_ctrl(uint32_t modifiers) {
+  if (_simgui.is_osx) {
+    return 0 != (modifiers & GLFW_MOD_SUPER);
+  } else {
+    return 0 != (modifiers & GLFW_MOD_CONTROL);
+  }
 }
-SOKOL_API_DECL void simgui_glfw_keycallback(int key,
+SOKOL_API_IMPL void simgui_glfw_mousebuttoncallback(GLFWwindow* win,
+                                                    int button,
+                                                    int action,
+                                                    int mods) {
+  switch (action) {
+    case GLFW_PRESS: {
+      if (button < 3) {
+        _simgui.btn_down[button] = true;
+      }
+      break;
+    }
+    case GLFW_RELEASE: {
+      if (button < 3) {
+        _simgui.btn_up[button] = true;
+      }
+      break;
+    }
+  }
+}
+SOKOL_API_IMPL void simgui_glfw_scrollcallback(GLFWwindow* win,
+                                               double xoffset,
+                                               double yoffset) {
+  ImGuiIO* io = &ImGui::GetIO();
+  io->MouseWheel = yoffset;
+  io->MouseWheelH = xoffset;
+}
+SOKOL_API_IMPL void simgui_glfw_keycallback(GLFWwindow* win,
+                                            int key,
                                             int scancode,
                                             int action,
-                                            int mods) {}
-SOKOL_API_DECL void simgui_glfw_charcallback(unsigned int c) {}
-SOKOL_API_DECL void simgui_glfw_mouseposcallback(GLFWwindow* win,
+                                            int mods) {
+  ImGuiIO* io = &ImGui::GetIO();
+  switch (action) {
+    case GLFW_PRESS: {
+      /* intercept Ctrl-V, this is handled via EVENTTYPE_CLIPBOARD_PASTED */
+      if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_V)) {
+        break;
+      }
+      /* on web platform, don't forward Ctrl-X, Ctrl-V to the browser */
+      if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_X)) {
+        break;
+      }
+      if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_C)) {
+        break;
+      }
+      _simgui.keys_down[key] = 0x80 | (uint8_t)mods;
+      break;
+    }
+    case GLFW_RELEASE: {
+      /* intercept Ctrl-V, this is handled via EVENTTYPE_CLIPBOARD_PASTED */
+      if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_V)) {
+        break;
+      }
+      /* on web platform, don't forward Ctrl-X, Ctrl-V to the browser */
+      if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_X)) {
+        break;
+      }
+      if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_C)) {
+        break;
+      }
+      _simgui.keys_up[key] = 0x80 | (uint8_t)mods;
+      break;
+      break;
+    }
+    default:
+      break;
+  }
+  _simgui_set_imgui_modifiers(io, mods);
+}
+SOKOL_API_IMPL void simgui_glfw_charmodscallback(GLFWwindow* win,
+                                                 unsigned int c,
+                                                 int mods) {
+  ImGuiIO* io = &ImGui::GetIO();
+  if ((c >= 32) && (c != 127) &&
+      (0 == (mods & (GLFW_MOD_ALT | GLFW_MOD_CONTROL | GLFW_MOD_SUPER)))) {
+#if defined(__cplusplus)
+    io->AddInputCharacter((ImWchar)c);
+#else
+    ImGuiIO_AddInputCharacter(io, (ImWchar)c);
+#endif
+    _simgui_set_imgui_modifiers(io, mods);
+  }
+}
+SOKOL_API_IMPL void simgui_glfw_mouseposcallback(GLFWwindow* win,
                                                  double xpos,
-                                                 double ypos) {}
+                                                 double ypos) {
+  ImGuiIO* io = &ImGui::GetIO();
+  io->MousePos.x = xpos;
+  io->MousePos.y = ypos;
+}
+
+SOKOL_API_IMPL void simgui_glfw_cursorentercallback(GLFWwindow* win,
+                                                    int entered) {
+  ImGuiIO* io = &ImGui::GetIO();
+  for (uint32_t i = 0; i < 3; i++) {
+    _simgui.btn_down[i] = false;
+    _simgui.btn_up[i] = false;
+    io->MouseDown[i] = false;
+  }
+}
 #endif
 
 #endif /* SOKOL_IMPL */
