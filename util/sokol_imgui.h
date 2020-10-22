@@ -260,7 +260,8 @@ SOKOL_API_DECL void simgui_glfw_keycallback(GLFWwindow* win,
                                             int action,
                                             int mods);
 SOKOL_API_DECL void simgui_glfw_charmodscallback(GLFWwindow* win,
-                                                 unsigned int c);
+                                                 unsigned int c,
+                                                 int mods);
 SOKOL_API_DECL void simgui_glfw_mouseposcallback(GLFWwindow* win,
                                                  double xpos,
                                                  double ypos);
