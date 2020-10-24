@@ -259,9 +259,7 @@ SOKOL_API_DECL void simgui_glfw_keycallback(GLFWwindow* win,
                                             int scancode,
                                             int action,
                                             int mods);
-SOKOL_API_DECL void simgui_glfw_charmodscallback(GLFWwindow* win,
-                                                 unsigned int c,
-                                                 int mods);
+SOKOL_API_DECL void simgui_glfw_charcallback(GLFWwindow* win, unsigned int c);
 SOKOL_API_DECL void simgui_glfw_mouseposcallback(GLFWwindow* win,
                                                  double xpos,
                                                  double ypos);
@@ -2054,6 +2052,7 @@ SOKOL_API_IMPL void simgui_setup(const simgui_desc_t* desc) {
   _simgui.is_osx = _simgui_is_osx();
 #elif defined(SOKOL_IMGUI_GLFW)
   _simgui.win = _simgui.desc.glfw_window;
+
 #endif
 /* can keep color_format, depth_format and sample_count as is,
    since sokol_gfx.h will do its own default-value handling
@@ -2129,7 +2128,7 @@ SOKOL_API_IMPL void simgui_setup(const simgui_desc_t* desc) {
   glfwSetMouseButtonCallback(_simgui.win, simgui_glfw_mousebuttoncallback);
   glfwSetScrollCallback(_simgui.win, simgui_glfw_scrollcallback);
   glfwSetKeyCallback(_simgui.win, simgui_glfw_keycallback);
-  glfwSetCharModsCallback(_simgui.win, simgui_glfw_charmodscallback);
+  glfwSetCharCallback(_simgui.win, simgui_glfw_charcallback);
   glfwSetCursorPosCallback(_simgui.win, simgui_glfw_mouseposcallback);
   glfwSetCursorEnterCallback(_simgui.win, simgui_glfw_cursorentercallback);
 #endif
@@ -2631,18 +2630,15 @@ SOKOL_API_IMPL void simgui_glfw_mousebuttoncallback(GLFWwindow* win,
                                                     int button,
                                                     int action,
                                                     int mods) {
-  switch (action) {
-    case GLFW_PRESS: {
-      if (button < 3) {
+  if (button < 3) {
+    switch (action) {
+      case GLFW_PRESS: {
         _simgui.btn_down[button] = true;
-      }
-      break;
-    }
-    case GLFW_RELEASE: {
-      if (button < 3) {
+      } break;
+
+      case GLFW_RELEASE: {
         _simgui.btn_up[button] = true;
-      }
-      break;
+      } break;
     }
   }
 }
@@ -2650,8 +2646,8 @@ SOKOL_API_IMPL void simgui_glfw_scrollcallback(GLFWwindow* win,
                                                double xoffset,
                                                double yoffset) {
   ImGuiIO* io = &ImGui::GetIO();
-  io->MouseWheel = yoffset;
-  io->MouseWheelH = xoffset;
+  io->MouseWheel += yoffset;
+  io->MouseWheelH += xoffset;
 }
 SOKOL_API_IMPL void simgui_glfw_keycallback(GLFWwindow* win,
                                             int key,
@@ -2673,6 +2669,7 @@ SOKOL_API_IMPL void simgui_glfw_keycallback(GLFWwindow* win,
         break;
       }
       _simgui.keys_down[key] = 0x80 | (uint8_t)mods;
+      io->KeysDown[key] = true;
       break;
     }
     case GLFW_RELEASE: {
@@ -2688,28 +2685,37 @@ SOKOL_API_IMPL void simgui_glfw_keycallback(GLFWwindow* win,
         break;
       }
       _simgui.keys_up[key] = 0x80 | (uint8_t)mods;
-      break;
+      io->KeysDown[key] = false;
+
       break;
     }
     default:
       break;
   }
-  _simgui_set_imgui_modifiers(io, mods);
-}
-SOKOL_API_IMPL void simgui_glfw_charmodscallback(GLFWwindow* win,
-                                                 unsigned int c,
-                                                 int mods) {
-  ImGuiIO* io = &ImGui::GetIO();
-  if ((c >= 32) && (c != 127) &&
-      (0 == (mods & (GLFW_MOD_ALT | GLFW_MOD_CONTROL | GLFW_MOD_SUPER)))) {
-#if defined(__cplusplus)
-    io->AddInputCharacter((ImWchar)c);
+
+  io->KeyCtrl = io->KeysDown[GLFW_KEY_LEFT_CONTROL] ||
+                io->KeysDown[GLFW_KEY_RIGHT_CONTROL];
+  io->KeyAlt =
+      io->KeysDown[GLFW_KEY_LEFT_ALT] || io->KeysDown[GLFW_KEY_RIGHT_ALT];
+  io->KeyShift =
+      io->KeysDown[GLFW_KEY_LEFT_SHIFT] || io->KeysDown[GLFW_KEY_RIGHT_SHIFT];
+#ifdef _WIN32
+  io->KeySuper = false;
 #else
-    ImGuiIO_AddInputCharacter(io, (ImWchar)c);
+  io->KeySuper =
+      io->KeysDown[GLFW_KEY_LEFT_SUPER] || io->KeysDown[GLFW_KEY_RIGHT_SUPER];
 #endif
-    _simgui_set_imgui_modifiers(io, mods);
-  }
 }
+
+SOKOL_API_IMPL void simgui_glfw_charcallback(GLFWwindow* win, unsigned int c) {
+  ImGuiIO* io = &ImGui::GetIO();
+#if defined(__cplusplus)
+  io->AddInputCharacter(c);
+#else
+  ImGuiIO_AddInputCharacter(io, c);
+#endif
+}
+
 SOKOL_API_IMPL void simgui_glfw_mouseposcallback(GLFWwindow* win,
                                                  double xpos,
                                                  double ypos) {
