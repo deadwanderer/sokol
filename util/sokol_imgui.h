@@ -200,23 +200,23 @@
 #include <stdbool.h>
 
 #if !defined(SOKOL_GFX_INCLUDED)
-#error "Please include sokol_gfx.h before sokol_imgui.h"
+  #error "Please include sokol_gfx.h before sokol_imgui.h"
 #endif
 #if defined(SOKOL_IMGUI_SOKOL_APP) && !defined(SOKOL_APP_INCLUDED)
-#error "Please include sokol_app.h before sokol_imgui.h"
+  #error "Please include sokol_app.h before sokol_imgui.h"
 #endif
 #if defined(SOKOL_IMGUI_GLFW)
-#include "glfw/glfw3.h"
+  #include "glfw/glfw3.h"
 #endif
 
 #ifndef SOKOL_API_DECL
-#if defined(_WIN32) && defined(SOKOL_DLL) && defined(SOKOL_IMPL)
-#define SOKOL_API_DECL __declspec(dllexport)
-#elif defined(_WIN32) && defined(SOKOL_DLL)
-#define SOKOL_API_DECL __declspec(dllimport)
-#else
-#define SOKOL_API_DECL extern
-#endif
+  #if defined(_WIN32) && defined(SOKOL_DLL) && defined(SOKOL_IMPL)
+    #define SOKOL_API_DECL __declspec(dllexport)
+  #elif defined(_WIN32) && defined(SOKOL_DLL)
+    #define SOKOL_API_DECL __declspec(dllimport)
+  #else
+    #define SOKOL_API_DECL extern
+  #endif
 #endif
 
 #ifdef __cplusplus
@@ -284,40 +284,40 @@ inline void simgui_setup(const simgui_desc_t& desc) {
 #define SOKOL_IMGUI_IMPL_INCLUDED (1)
 
 #if defined(__cplusplus)
-#if !defined(IMGUI_VERSION)
-#error "Please include imgui.h before the sokol_imgui.h implementation"
-#endif
+  #if !defined(IMGUI_VERSION)
+    #error "Please include imgui.h before the sokol_imgui.h implementation"
+  #endif
 #else
-#if !defined(CIMGUI_INCLUDED)
-#error "Please include cimgui.h before the sokol_imgui.h implementation"
-#endif
+  #if !defined(CIMGUI_INCLUDED)
+    #error "Please include cimgui.h before the sokol_imgui.h implementation"
+  #endif
 #endif
 
 #include <stddef.h> /* offsetof */
 #include <string.h> /* memset */
 
 #if !defined(SOKOL_IMGUI_NO_SOKOL_APP) && defined(__EMSCRIPTEN__)
-#include <emscripten.h>
+  #include <emscripten.h>
 #endif
 
 #ifndef SOKOL_API_IMPL
-#define SOKOL_API_IMPL
+  #define SOKOL_API_IMPL
 #endif
 #ifndef SOKOL_DEBUG
-#ifndef NDEBUG
-#define SOKOL_DEBUG (1)
-#endif
+  #ifndef NDEBUG
+    #define SOKOL_DEBUG (1)
+  #endif
 #endif
 #ifndef SOKOL_ASSERT
-#include <assert.h>
-#define SOKOL_ASSERT(c) assert(c)
+  #include <assert.h>
+  #define SOKOL_ASSERT(c) assert(c)
 #endif
 #ifndef _SOKOL_PRIVATE
-#if defined(__GNUC__) || defined(__clang__)
-#define _SOKOL_PRIVATE __attribute__((unused)) static
-#else
-#define _SOKOL_PRIVATE static
-#endif
+  #if defined(__GNUC__) || defined(__clang__)
+    #define _SOKOL_PRIVATE __attribute__((unused)) static
+  #else
+    #define _SOKOL_PRIVATE static
+  #endif
 #endif
 
 /* helper macros */
@@ -1997,8 +1997,8 @@ static const uint8_t _simgui_fs_bytecode_wgpu[904] = {
 static const char* _simgui_vs_source_dummy = "";
 static const char* _simgui_fs_source_dummy = "";
 #else
-#error \
-    "Please define one of SOKOL_GLCORE33, SOKOL_GLES2, SOKOL_GLES3, SOKOL_D3D11, SOKOL_METAL, SOKOL_WGPU or SOKOL_DUMMY_BACKEND!"
+  #error \
+      "Please define one of SOKOL_GLCORE33, SOKOL_GLES2, SOKOL_GLES3, SOKOL_D3D11, SOKOL_METAL, SOKOL_WGPU or SOKOL_DUMMY_BACKEND!"
 #endif
 
 #if defined(SOKOL_IMGUI_SOKOL_APP)
@@ -2020,6 +2020,15 @@ static void _simgui_set_clipboard(void* user_data, const char* text) {
 static const char* _simgui_get_clipboard(void* user_data) {
   return glfwGetClipboardString((GLFWwindow*)user_data);
 }
+
+static GLFWmousebuttonfun _g_PrevUserCallbackMousebutton = NULL;
+static GLFWscrollfun _g_PrevUserCallbackScroll = NULL;
+static GLFWkeyfun _g_PrevUserCallbackKey = NULL;
+static GLFWcharfun _g_PrevUserCallbackChar = NULL;
+static GLFWcursorposfun _g_PrevUserCallbackCursorPos = NULL;
+static GLFWcursorenterfun _g_PrevUserCallbackCursorEnter = NULL;
+static bool _g_InstalledCallbacks = false;
+
 #endif
 
 #if defined(__EMSCRIPTEN__)
@@ -2125,12 +2134,20 @@ SOKOL_API_IMPL void simgui_setup(const simgui_desc_t* desc) {
     io->KeyMap[ImGuiKey_Y] = GLFW_KEY_Y;
     io->KeyMap[ImGuiKey_Z] = GLFW_KEY_Z;
   }
-  glfwSetMouseButtonCallback(_simgui.win, simgui_glfw_mousebuttoncallback);
-  glfwSetScrollCallback(_simgui.win, simgui_glfw_scrollcallback);
-  glfwSetKeyCallback(_simgui.win, simgui_glfw_keycallback);
-  glfwSetCharCallback(_simgui.win, simgui_glfw_charcallback);
-  glfwSetCursorPosCallback(_simgui.win, simgui_glfw_mouseposcallback);
-  glfwSetCursorEnterCallback(_simgui.win, simgui_glfw_cursorentercallback);
+
+  _g_PrevUserCallbackMousebutton =
+      glfwSetMouseButtonCallback(_simgui.win, simgui_glfw_mousebuttoncallback);
+  _g_PrevUserCallbackScroll =
+      glfwSetScrollCallback(_simgui.win, simgui_glfw_scrollcallback);
+  _g_PrevUserCallbackKey =
+      glfwSetKeyCallback(_simgui.win, simgui_glfw_keycallback);
+  _g_PrevUserCallbackChar =
+      glfwSetCharCallback(_simgui.win, simgui_glfw_charcallback);
+  _g_PrevUserCallbackCursorPos =
+      glfwSetCursorPosCallback(_simgui.win, simgui_glfw_mouseposcallback);
+  _g_PrevUserCallbackCursorEnter =
+      glfwSetCursorEnterCallback(_simgui.win, simgui_glfw_cursorentercallback);
+  _g_InstalledCallbacks = true;
 #endif
 #if defined(SOKOL_IMGUI_SOKOL_APP) || defined(SOKOL_IMGUI_GLFW)
   io->SetClipboardTextFn = _simgui_set_clipboard;
@@ -2283,6 +2300,15 @@ SOKOL_API_IMPL void simgui_setup(const simgui_desc_t* desc) {
 }
 
 SOKOL_API_IMPL void simgui_shutdown(void) {
+  if (_g_InstalledCallbacks) {
+    glfwSetMouseButtonCallback(_simgui.win, _g_PrevUserCallbackMousebutton);
+    glfwSetScrollCallback(_simgui.win, _g_PrevUserCallbackScroll);
+    glfwSetKeyCallback(_simgui.win, _g_PrevUserCallbackKey);
+    glfwSetCharCallback(_simgui.win, _g_PrevUserCallbackChar);
+    glfwSetCursorPosCallback(_simgui.win, _g_PrevUserCallbackCursorPos);
+    glfwSetCursorEnterCallback(_simgui.win, _g_PrevUserCallbackCursorEnter);
+    _g_InstalledCallbacks = false;
+  }
 #if defined(__cplusplus)
   ImGui::DestroyContext();
 #else
@@ -2509,11 +2535,11 @@ _SOKOL_PRIVATE bool _simgui_is_ctrl(uint32_t modifiers) {
 
 SOKOL_API_IMPL bool simgui_handle_event(const sapp_event* ev) {
   const float dpi_scale = _simgui.desc.dpi_scale;
-#if defined(__cplusplus)
+  #if defined(__cplusplus)
   ImGuiIO* io = &ImGui::GetIO();
-#else
+  #else
   ImGuiIO* io = igGetIO();
-#endif
+  #endif
   _simgui_set_imgui_modifiers(io, ev->modifiers);
   switch (ev->type) {
     case SAPP_EVENTTYPE_MOUSE_DOWN:
@@ -2600,11 +2626,11 @@ SOKOL_API_IMPL bool simgui_handle_event(const sapp_event* ev) {
       if ((ev->char_code >= 32) && (ev->char_code != 127) &&
           (0 == (ev->modifiers & (SAPP_MODIFIER_ALT | SAPP_MODIFIER_CTRL |
                                   SAPP_MODIFIER_SUPER)))) {
-#if defined(__cplusplus)
+  #if defined(__cplusplus)
         io->AddInputCharacter((ImWchar)ev->char_code);
-#else
+  #else
         ImGuiIO_AddInputCharacter(io, (ImWchar)ev->char_code);
-#endif
+  #endif
       }
       break;
     case SAPP_EVENTTYPE_CLIPBOARD_PASTED:
@@ -2630,6 +2656,9 @@ SOKOL_API_IMPL void simgui_glfw_mousebuttoncallback(GLFWwindow* win,
                                                     int button,
                                                     int action,
                                                     int mods) {
+  if (_g_PrevUserCallbackMousebutton != NULL) {
+    _g_PrevUserCallbackMousebutton(win, button, action, mods);
+  }
   if (button < 3) {
     switch (action) {
       case GLFW_PRESS: {
@@ -2645,15 +2674,21 @@ SOKOL_API_IMPL void simgui_glfw_mousebuttoncallback(GLFWwindow* win,
 SOKOL_API_IMPL void simgui_glfw_scrollcallback(GLFWwindow* win,
                                                double xoffset,
                                                double yoffset) {
+  if (_g_PrevUserCallbackScroll != NULL) {
+    _g_PrevUserCallbackScroll(win, xoffset, yoffset);
+  }
   ImGuiIO* io = &ImGui::GetIO();
-  io->MouseWheel += yoffset;
-  io->MouseWheelH += xoffset;
+  io->MouseWheel += static_cast<float>(yoffset);
+  io->MouseWheelH += static_cast<float>(xoffset);
 }
 SOKOL_API_IMPL void simgui_glfw_keycallback(GLFWwindow* win,
                                             int key,
                                             int scancode,
                                             int action,
                                             int mods) {
+  if (_g_PrevUserCallbackKey != NULL) {
+    _g_PrevUserCallbackKey(win, key, scancode, action, mods);
+  }
   ImGuiIO* io = &ImGui::GetIO();
   switch (action) {
     case GLFW_PRESS: {
@@ -2699,33 +2734,42 @@ SOKOL_API_IMPL void simgui_glfw_keycallback(GLFWwindow* win,
       io->KeysDown[GLFW_KEY_LEFT_ALT] || io->KeysDown[GLFW_KEY_RIGHT_ALT];
   io->KeyShift =
       io->KeysDown[GLFW_KEY_LEFT_SHIFT] || io->KeysDown[GLFW_KEY_RIGHT_SHIFT];
-#ifdef _WIN32
+  #ifdef _WIN32
   io->KeySuper = false;
-#else
+  #else
   io->KeySuper =
       io->KeysDown[GLFW_KEY_LEFT_SUPER] || io->KeysDown[GLFW_KEY_RIGHT_SUPER];
-#endif
+  #endif
 }
 
 SOKOL_API_IMPL void simgui_glfw_charcallback(GLFWwindow* win, unsigned int c) {
+  if (_g_PrevUserCallbackChar != NULL) {
+    _g_PrevUserCallbackChar(win, c);
+  }
   ImGuiIO* io = &ImGui::GetIO();
-#if defined(__cplusplus)
+  #if defined(__cplusplus)
   io->AddInputCharacter(c);
-#else
+  #else
   ImGuiIO_AddInputCharacter(io, c);
-#endif
+  #endif
 }
 
 SOKOL_API_IMPL void simgui_glfw_mouseposcallback(GLFWwindow* win,
                                                  double xpos,
                                                  double ypos) {
+  if (_g_PrevUserCallbackCursorPos != NULL) {
+    _g_PrevUserCallbackCursorPos(win, xpos, ypos);
+  }
   ImGuiIO* io = &ImGui::GetIO();
-  io->MousePos.x = xpos;
-  io->MousePos.y = ypos;
+  io->MousePos.x = static_cast<float>(xpos);
+  io->MousePos.y = static_cast<float>(ypos);
 }
 
 SOKOL_API_IMPL void simgui_glfw_cursorentercallback(GLFWwindow* win,
                                                     int entered) {
+  if (_g_PrevUserCallbackCursorEnter != NULL) {
+    _g_PrevUserCallbackCursorEnter(win, entered);
+  }
   ImGuiIO* io = &ImGui::GetIO();
   for (uint32_t i = 0; i < 3; i++) {
     _simgui.btn_down[i] = false;
