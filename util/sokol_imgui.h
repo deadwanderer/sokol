@@ -1,227 +1,234 @@
+#if defined(SOKOL_IMPL) && !defined(SOKOL_IMGUI_IMPL)
+  #define SOKOL_IMGUI_IMPL
+#endif
 #ifndef SOKOL_IMGUI_INCLUDED
-/*
-    sokol_imgui.h -- drop-in Dear ImGui renderer/event-handler for sokol_gfx.h
+  /*
+      sokol_imgui.h -- drop-in Dear ImGui renderer/event-handler for sokol_gfx.h
 
-    Project URL: https://github.com/floooh/sokol
+      Project URL: https://github.com/floooh/sokol
 
-    Do this:
+      Do this:
+          #define SOKOL_IMPL or
+          #define SOKOL_IMGUI_IMPL
 
-        #define SOKOL_IMGUI_IMPL
+      before you include this file in *one* C or C++ file to create the
+      implementation.
 
-    before you include this file in *one* C or C++ file to create the
-    implementation.
+      NOTE that the implementation can be compiled either as C++ or as C.
+      When compiled as C++, sokol_imgui.h will directly call into the
+      Dear ImGui C++ API. When compiled as C, sokol_imgui.h will call
+      cimgui.h functions instead.
 
-    NOTE that the implementation can be compiled either as C++ or as C.
-    When compiled as C++, sokol_imgui.h will directly call into the
-    Dear ImGui C++ API. When compiled as C, sokol_imgui.h will call
-    cimgui.h functions instead.
+      NOTE that the formerly separate header sokol_cimgui.h has been
+      merged into sokol_imgui.h
 
-    NOTE that the formerly separate header sokol_cimgui.h has been
-    merged into sokol_imgui.h
+      The following defines are used by the implementation to select the
+      platform-specific embedded shader code (these are the same defines as
+      used by sokol_gfx.h and sokol_app.h):
 
-    The following defines are used by the implementation to select the
-    platform-specific embedded shader code (these are the same defines as
-    used by sokol_gfx.h and sokol_app.h):
+      SOKOL_GLCORE33
+      SOKOL_GLES2
+      SOKOL_GLES3
+      SOKOL_D3D11
+      SOKOL_METAL
+      SOKOL_WGPU
 
-    SOKOL_GLCORE33
-    SOKOL_GLES2
-    SOKOL_GLES3
-    SOKOL_D3D11
-    SOKOL_METAL
-    SOKOL_WGPU
+      Optionally provide the following configuration defines before including
+     the implementation:
 
-    Optionally provide the following configuration defines before including the
-    implementation:
+      SOKOL_IMGUI_SOKOL_APP    - depend on sokol_app.h (see below for details)
+      SOKOL_IMGUI_GLFW         - use GLFW events
 
-    SOKOL_IMGUI_SOKOL_APP    - depend on sokol_app.h (see below for details)
-    SOKOL_IMGUI_GLFW         - use GLFW events
+      Optionally provide the following macros before including the
+     implementation to override defaults:
 
-    Optionally provide the following macros before including the implementation
-    to override defaults:
+      SOKOL_ASSERT(c)     - your own assert macro (default: assert(c))
+      SOKOL_IMGUI_API_DECL- public function declaration prefix (default: extern)
+      SOKOL_API_DECL      - same as SOKOL_IMGUI_API_DECL
+      SOKOL_API_IMPL      - public function implementation prefix (default: -)
 
-    SOKOL_ASSERT(c)     - your own assert macro (default: assert(c))
-    SOKOL_API_DECL      - public function declaration prefix (default: extern)
-    SOKOL_API_IMPL      - public function implementation prefix (default: -)
+      If sokol_imgui.h is compiled as a DLL, define the following before
+      including the declaration or implementation:
 
-    If sokol_imgui.h is compiled as a DLL, define the following before
-    including the declaration or implementation:
+      SOKOL_DLL
 
-    SOKOL_DLL
+      On Windows, SOKOL_DLL will define SOKOL_IMGUI_API_DECL as
+     __declspec(dllexport) or __declspec(dllimport) as needed.
 
-    On Windows, SOKOL_DLL will define SOKOL_API_DECL as __declspec(dllexport)
-    or __declspec(dllimport) as needed.
+      Include the following headers before sokol_imgui.h (both before including
+      the declaration and implementation):
 
-    Include the following headers before sokol_imgui.h (both before including
-    the declaration and implementation):
+          sokol_gfx.h
+          sokol_app.h     (except SOKOL_IMGUI_NO_SOKOL_APP)
 
-        sokol_gfx.h
-        sokol_app.h     (except SOKOL_IMGUI_NO_SOKOL_APP)
+      Additionally, include the following headers before including the
+      implementation:
 
-    Additionally, include the following headers before including the
-    implementation:
+      If the implementation is compiled as C++:
+          imgui.h
 
-    If the implementation is compiled as C++:
-        imgui.h
-
-    If the implementation is compiled as C:
-        cimgui.h
+      If the implementation is compiled as C:
+          cimgui.h
 
 
-    FEATURE OVERVIEW:
-    =================
-    sokol_imgui.h implements the initialization, rendering and event-handling
-    code for Dear ImGui (https://github.com/ocornut/imgui) on top of
-    sokol_gfx.h and (optionally) sokol_app.h.
+      FEATURE OVERVIEW:
+      =================
+      sokol_imgui.h implements the initialization, rendering and event-handling
+      code for Dear ImGui (https://github.com/ocornut/imgui) on top of
+      sokol_gfx.h and (optionally) sokol_app.h.
 
-    The sokol_app.h dependency is optional and used for input event handling.
-    If you only use sokol_gfx.h but not sokol_app.h in your application,
-    define SOKOL_IMGUI_NO_SOKOL_APP before including the implementation
-    of sokol_imgui.h, this will remove any dependency to sokol_app.h, but
-    you must feed input events into Dear ImGui yourself.
+      The sokol_app.h dependency is optional and used for input event handling.
+      If you only use sokol_gfx.h but not sokol_app.h in your application,
+      define SOKOL_IMGUI_NO_SOKOL_APP before including the implementation
+      of sokol_imgui.h, this will remove any dependency to sokol_app.h, but
+      you must feed input events into Dear ImGui yourself.
 
-    sokol_imgui.h is not thread-safe, all calls must be made from the
-    same thread where sokol_gfx.h is running.
+      sokol_imgui.h is not thread-safe, all calls must be made from the
+      same thread where sokol_gfx.h is running.
 
-    HOWTO:
-    ======
+      HOWTO:
+      ======
 
-    --- To initialize sokol-imgui, call:
+      --- To initialize sokol-imgui, call:
 
-        simgui_setup(const simgui_desc_t* desc)
+          simgui_setup(const simgui_desc_t* desc)
 
-        This will initialize Dear ImGui and create sokol-gfx resources
-        (two buffers for vertices and indices, a font texture and a pipeline-
-        state-object).
+          This will initialize Dear ImGui and create sokol-gfx resources
+          (two buffers for vertices and indices, a font texture and a pipeline-
+          state-object).
 
-        Use the following simgui_desc_t members to configure behaviour:
+          Use the following simgui_desc_t members to configure behaviour:
 
-            int max_vertices
-                The maximum number of vertices used for UI rendering, default is
-   65536. sokol-imgui will use this to compute the size of the vertex- and
-   index-buffers allocated via sokol_gfx.h
+              int max_vertices
+                  The maximum number of vertices used for UI rendering, default
+     is 65536. sokol-imgui will use this to compute the size of the vertex- and
+     index-buffers allocated via sokol_gfx.h
 
-            sg_pixel_format color_format
-                The color pixel format of the render pass where the UI
-                will be rendered. The default is SG_PIXELFORMAT_RGBA8
+              sg_pixel_format color_format
+                  The color pixel format of the render pass where the UI
+                  will be rendered. The default is SG_PIXELFORMAT_RGBA8
 
-            sg_pixel_format depth_format
-                The depth-buffer pixel format of the render pass where
-                the UI will be rendered. The default is
-   SG_PIXELFORMAT_DEPTHSTENCIL.
+              sg_pixel_format depth_format
+                  The depth-buffer pixel format of the render pass where
+                  the UI will be rendered. The default is
+     SG_PIXELFORMAT_DEPTHSTENCIL.
 
-            int sample_count
-                The MSAA sample-count of the render pass where the UI
-                will be rendered. The default is 1.
+              int sample_count
+                  The MSAA sample-count of the render pass where the UI
+                  will be rendered. The default is 1.
 
-            float dpi_scale
-                DPI scaling factor. Set this to the result of sapp_dpi_scale().
-                To render in high resolution on a Retina Mac this would
-                typically be 2.0. The default value is 1.0
+              float dpi_scale
+                  DPI scaling factor. Set this to the result of
+     sapp_dpi_scale(). To render in high resolution on a Retina Mac this would
+                  typically be 2.0. The default value is 1.0
 
-            const char* ini_filename
-                Sets this path as ImGui::GetIO().IniFilename where ImGui will
-   store and load UI persistency data. By default this is 0, so that Dear ImGui
-                will not preserve state between sessions (and also won't do
-                any filesystem calls). Also see the ImGui functions:
-                    - LoadIniSettingsFromMemory()
-                    - SaveIniSettingsFromMemory()
-                These functions give you explicit control over loading and
-   saving UI state while using your own filesystem wrapper functions (in this
-                case keep simgui_desc.ini_filename zero)
+              const char* ini_filename
+                  Sets this path as ImGui::GetIO().IniFilename where ImGui will
+     store and load UI persistency data. By default this is 0, so that Dear
+     ImGui will not preserve state between sessions (and also won't do any
+     filesystem calls). Also see the ImGui functions:
+                      - LoadIniSettingsFromMemory()
+                      - SaveIniSettingsFromMemory()
+                  These functions give you explicit control over loading and
+     saving UI state while using your own filesystem wrapper functions (in this
+                  case keep simgui_desc.ini_filename zero)
 
-            bool no_default_font
-                Set this to true if you don't want to use ImGui's default
-                font. In this case you need to initialize the font
-                yourself after simgui_setup() is called.
+              bool no_default_font
+                  Set this to true if you don't want to use ImGui's default
+                  font. In this case you need to initialize the font
+                  yourself after simgui_setup() is called.
 
-    --- At the start of a frame, call:
+      --- At the start of a frame, call:
 
-        simgui_new_frame(int width, int height, double delta_time)
+          simgui_new_frame(int width, int height, double delta_time)
 
-        'width' and 'height' are the dimensions of the rendering surface,
-        passed to ImGui::GetIO().DisplaySize.
+          'width' and 'height' are the dimensions of the rendering surface,
+          passed to ImGui::GetIO().DisplaySize.
 
-        'delta_time' is the frame duration passed to ImGui::GetIO().DeltaTime.
+          'delta_time' is the frame duration passed to ImGui::GetIO().DeltaTime.
 
-        For example, if you're using sokol_app.h and render to the
-        default framebuffer:
+          For example, if you're using sokol_app.h and render to the
+          default framebuffer:
 
-        simgui_new_frame(sapp_width(), sapp_height(), delta_time);
+          simgui_new_frame(sapp_width(), sapp_height(), delta_time);
 
-    --- at the end of the frame, before the sg_end_pass() where you
-        want to render the UI, call:
+      --- at the end of the frame, before the sg_end_pass() where you
+          want to render the UI, call:
 
-        simgui_render()
+          simgui_render()
 
-        This will first call ImGui::Render(), and then render ImGui's draw list
-        through sokol_gfx.h
+          This will first call ImGui::Render(), and then render ImGui's draw
+     list through sokol_gfx.h
 
-    --- if you're using sokol_app.h, from inside the sokol_app.h event callback,
-        call:
+      --- if you're using sokol_app.h, from inside the sokol_app.h event
+     callback, call:
 
-        bool simgui_handle_event(const sapp_event* ev);
+          bool simgui_handle_event(const sapp_event* ev);
 
-        The return value is the value of ImGui::GetIO().WantCaptureKeyboard,
-        if this is true, you might want to skip keyboard input handling
-        in your own event handler.
+          The return value is the value of ImGui::GetIO().WantCaptureKeyboard,
+          if this is true, you might want to skip keyboard input handling
+          in your own event handler.
 
-    --- finally, on application shutdown, call
+      --- finally, on application shutdown, call
 
-        simgui_shutdown()
+          simgui_shutdown()
 
-    LICENSE
-    =======
+      LICENSE
+      =======
 
-    zlib/libpng license
+      zlib/libpng license
 
-    Copyright (c) 2018 Andre Weissflog
+      Copyright (c) 2018 Andre Weissflog
 
-    This software is provided 'as-is', without any express or implied warranty.
-    In no event will the authors be held liable for any damages arising from the
-    use of this software.
+      This software is provided 'as-is', without any express or implied
+     warranty. In no event will the authors be held liable for any damages
+     arising from the use of this software.
 
-    Permission is granted to anyone to use this software for any purpose,
-    including commercial applications, and to alter it and redistribute it
-    freely, subject to the following restrictions:
+      Permission is granted to anyone to use this software for any purpose,
+      including commercial applications, and to alter it and redistribute it
+      freely, subject to the following restrictions:
 
-        1. The origin of this software must not be misrepresented; you must not
-        claim that you wrote the original software. If you use this software in
-   a product, an acknowledgment in the product documentation would be
-        appreciated but is not required.
+          1. The origin of this software must not be misrepresented; you must
+     not claim that you wrote the original software. If you use this software in
+     a product, an acknowledgment in the product documentation would be
+          appreciated but is not required.
 
-        2. Altered source versions must be plainly marked as such, and must not
-        be misrepresented as being the original software.
+          2. Altered source versions must be plainly marked as such, and must
+     not be misrepresented as being the original software.
 
-        3. This notice may not be removed or altered from any source
-        distribution.
-*/
-#define SOKOL_IMGUI_INCLUDED (1)
-#include <stdint.h>
-#include <stdbool.h>
+          3. This notice may not be removed or altered from any source
+          distribution.
+  */
+  #define SOKOL_IMGUI_INCLUDED (1)
+  #include <stdint.h>
+  #include <stdbool.h>
 
-#if !defined(SOKOL_GFX_INCLUDED)
-  #error "Please include sokol_gfx.h before sokol_imgui.h"
-#endif
-#if defined(SOKOL_IMGUI_SOKOL_APP) && !defined(SOKOL_APP_INCLUDED)
-  #error "Please include sokol_app.h before sokol_imgui.h"
-#endif
-#if defined(SOKOL_IMGUI_GLFW)
-  #include "glfw/glfw3.h"
-#endif
-
-#ifndef SOKOL_API_DECL
-  #if defined(_WIN32) && defined(SOKOL_DLL) && defined(SOKOL_IMPL)
-    #define SOKOL_API_DECL __declspec(dllexport)
-  #elif defined(_WIN32) && defined(SOKOL_DLL)
-    #define SOKOL_API_DECL __declspec(dllimport)
-  #else
-    #define SOKOL_API_DECL extern
+  #if !defined(SOKOL_GFX_INCLUDED)
+    #error "Please include sokol_gfx.h before sokol_imgui.h"
   #endif
-#endif
+  #if defined(SOKOL_IMGUI_SOKOL_APP) && !defined(SOKOL_APP_INCLUDED)
+    #error "Please include sokol_app.h before sokol_imgui.h"
+  #endif
+  #if defined(SOKOL_IMGUI_GLFW)
+    #include "glfw/glfw3.h"
+  #endif
 
-#ifdef __cplusplus
+  #if defined(SOKOL_API_DECL) && !defined(SOKOL_IMGUI_API_DECL)
+    #define SOKOL_IMGUI_API_DECL SOKOL_API_DECL
+  #endif
+  #ifndef SOKOL_IMGUI_API_DECL
+    #if defined(_WIN32) && defined(SOKOL_DLL) && defined(SOKOL_IMGUI_IMPL)
+      #define SOKOL_IMGUI_API_DECL __declspec(dllexport)
+    #elif defined(_WIN32) && defined(SOKOL_DLL)
+      #define SOKOL_IMGUI_API_DECL __declspec(dllimport)
+    #else
+      #define SOKOL_IMGUI_API_DECL extern
+    #endif
+  #endif
+
+  #ifdef __cplusplus
 extern "C" {
-#endif
+  #endif
 
 typedef struct simgui_desc_t {
   int max_vertices;
@@ -232,43 +239,52 @@ typedef struct simgui_desc_t {
   const char* ini_filename;
   bool no_default_font;
   bool disable_hotkeys; /* don't let ImGui handle Ctrl-A,C,V,X,Y,Z */
-#if defined(SOKOL_IMGUI_GLFW)
+  #if defined(SOKOL_IMGUI_GLFW)
   GLFWwindow* glfw_window;
-#endif
+  #endif
 } simgui_desc_t;
 
-SOKOL_API_DECL void simgui_setup(const simgui_desc_t* desc);
-#if defined(SOKOL_IMGUI_GLFW)
-SOKOL_API_DECL void simgui_new_frame(double delta_time);
-#else
-SOKOL_API_DECL void simgui_new_frame(int width, int height, double delta_time);
-#endif
-SOKOL_API_DECL void simgui_render(void);
-#if defined(SOKOL_IMGUI_SOKOL_APP)
-SOKOL_API_DECL bool simgui_handle_event(const sapp_event* ev);
-#elif defined(SOKOL_IMGUI_GLFW)
-SOKOL_API_DECL void simgui_glfw_mousebuttoncallback(GLFWwindow* win,
-                                                    int button,
-                                                    int action,
-                                                    int mods);
-SOKOL_API_DECL void simgui_glfw_scrollcallback(GLFWwindow* win,
-                                               double xoffset,
-                                               double yoffset);
-SOKOL_API_DECL void simgui_glfw_keycallback(GLFWwindow* win,
-                                            int key,
-                                            int scancode,
-                                            int action,
-                                            int mods);
-SOKOL_API_DECL void simgui_glfw_charcallback(GLFWwindow* win, unsigned int c);
-SOKOL_API_DECL void simgui_glfw_mouseposcallback(GLFWwindow* win,
-                                                 double xpos,
-                                                 double ypos);
-SOKOL_API_DECL void simgui_glfw_cursorentercallback(GLFWwindow* win,
-                                                    int entered);
-#endif
-SOKOL_API_DECL void simgui_shutdown(void);
+SOKOL_IMGUI_API_DECL void simgui_setup(const simgui_desc_t* desc);
+  #if defined(SOKOL_IMGUI_GLFW)
+SOKOL_IMGUI_API_DECL void simgui_new_frame(double delta_time);
+  #else
+SOKOL_IMGUI_API_DECL void simgui_new_frame(int width,
+                                           int height,
+                                           double delta_time);
+  #endif
+SOKOL_IMGUI_API_DECL void simgui_render(void);
+  #if defined(SOKOL_IMGUI_SOKOL_APP)
+SOKOL_IMGUI_API_DECL bool simgui_handle_event(const sapp_event* ev);
+  #elif defined(SOKOL_IMGUI_GLFW)
+SOKOL_IMGUI_API_DECL void simgui_glfw_mousebuttoncallback(GLFWwindow* win,
+                                                          int button,
+                                                          int action,
+                                                          int mods);
+SOKOL_IMGUI_API_DECL void simgui_glfw_scrollcallback(GLFWwindow* win,
+                                                     double xoffset,
+                                                     double yoffset);
+SOKOL_IMGUI_API_DECL void simgui_glfw_keycallback(GLFWwindow* win,
+                                                  int key,
+                                                  int scancode,
+                                                  int action,
+                                                  int mods);
+SOKOL_IMGUI_API_DECL void simgui_glfw_charcallback(GLFWwindow* win,
+                                                   unsigned int c);
+SOKOL_IMGUI_API_DECL void simgui_glfw_mouseposcallback(GLFWwindow* win,
+                                                       double xpos,
+                                                       double ypos);
+SOKOL_IMGUI_API_DECL void simgui_glfw_cursorentercallback(GLFWwindow* win,
+                                                          int entered);
+SOKOL_IMGUI_API_DECL void simgui_setup(const simgui_desc_t* desc);
+SOKOL_IMGUI_API_DECL void simgui_new_frame(int width,
+                                           int height,
+                                           double delta_time);
+SOKOL_IMGUI_API_DECL void simgui_render(void);
+    #if !defined(SOKOL_IMGUI_NO_SOKOL_APP)
+SOKOL_IMGUI_API_DECL bool simgui_handle_event(const sapp_event* ev);
+    #endif SOKOL_IMGUI_API_DECL void simgui_shutdown(void);
 
-#ifdef __cplusplus
+    #ifdef __cplusplus
 } /* extern "C" */
 
 /* reference-based equivalents for C++ */
@@ -276,60 +292,61 @@ inline void simgui_setup(const simgui_desc_t& desc) {
   return simgui_setup(&desc);
 }
 
-#endif
-#endif /* SOKOL_IMGUI_INCLUDED */
+    #endif
+  #endif /* SOKOL_IMGUI_INCLUDED */
 
-/*-- IMPLEMENTATION ----------------------------------------------------------*/
-#ifdef SOKOL_IMGUI_IMPL
-#define SOKOL_IMGUI_IMPL_INCLUDED (1)
+  /*-- IMPLEMENTATION
+   * ----------------------------------------------------------*/
+  #ifdef SOKOL_IMGUI_IMPL
+    #define SOKOL_IMGUI_IMPL_INCLUDED (1)
 
-#if defined(__cplusplus)
-  #if !defined(IMGUI_VERSION)
-    #error "Please include imgui.h before the sokol_imgui.h implementation"
-  #endif
-#else
-  #if !defined(CIMGUI_INCLUDED)
-    #error "Please include cimgui.h before the sokol_imgui.h implementation"
-  #endif
-#endif
+    #if defined(__cplusplus)
+      #if !defined(IMGUI_VERSION)
+        #error "Please include imgui.h before the sokol_imgui.h implementation"
+      #endif
+    #else
+      #if !defined(CIMGUI_INCLUDED)
+        #error "Please include cimgui.h before the sokol_imgui.h implementation"
+      #endif
+    #endif
 
-#include <stddef.h> /* offsetof */
-#include <string.h> /* memset */
+    #include <stddef.h> /* offsetof */
+    #include <string.h> /* memset */
 
-#if !defined(SOKOL_IMGUI_NO_SOKOL_APP) && defined(__EMSCRIPTEN__)
-  #include <emscripten.h>
-#endif
+    #if !defined(SOKOL_IMGUI_NO_SOKOL_APP) && defined(__EMSCRIPTEN__)
+      #include <emscripten.h>
+    #endif
 
-#ifndef SOKOL_API_IMPL
-  #define SOKOL_API_IMPL
-#endif
-#ifndef SOKOL_DEBUG
-  #ifndef NDEBUG
-    #define SOKOL_DEBUG (1)
-  #endif
-#endif
-#ifndef SOKOL_ASSERT
-  #include <assert.h>
-  #define SOKOL_ASSERT(c) assert(c)
-#endif
-#ifndef _SOKOL_PRIVATE
-  #if defined(__GNUC__) || defined(__clang__)
-    #define _SOKOL_PRIVATE __attribute__((unused)) static
-  #else
-    #define _SOKOL_PRIVATE static
-  #endif
-#endif
+    #ifndef SOKOL_API_IMPL
+      #define SOKOL_API_IMPL
+    #endif
+    #ifndef SOKOL_DEBUG
+      #ifndef NDEBUG
+        #define SOKOL_DEBUG (1)
+      #endif
+    #endif
+    #ifndef SOKOL_ASSERT
+      #include <assert.h>
+      #define SOKOL_ASSERT(c) assert(c)
+    #endif
+    #ifndef _SOKOL_PRIVATE
+      #if defined(__GNUC__) || defined(__clang__)
+        #define _SOKOL_PRIVATE __attribute__((unused)) static
+      #else
+        #define _SOKOL_PRIVATE static
+      #endif
+    #endif
 
-/* helper macros */
-#define _simgui_def(val, def) (((val) == 0) ? (def) : (val))
+    /* helper macros */
+    #define _simgui_def(val, def) (((val) == 0) ? (def) : (val))
 
 typedef struct {
   ImVec2 disp_size;
   uint8_t _pad_8[8];
 } _simgui_vs_params_t;
 
-#define SIMGUI_MAX_KEY_VALUE (512)   // same as ImGuis IO.KeysDown array
-#define SIMGUI_MAX_MOUSEBUTTONS (3)  // left, right, middle
+    #define SIMGUI_MAX_KEY_VALUE (512)   // same as ImGuis IO.KeysDown array
+    #define SIMGUI_MAX_MOUSEBUTTONS (3)  // left, right, middle
 
 typedef struct {
   simgui_desc_t desc;
@@ -340,60 +357,59 @@ typedef struct {
   sg_pipeline pip;
   bool is_osx;  // return true if running on OSX (or HTML5 OSX), needed for
                 // copy/paste
-#if defined(SOKOL_IMGUI_SOKOL_APP)
+    #if defined(SOKOL_IMGUI_SOKOL_APP)
   bool btn_down[SAPP_MAX_MOUSEBUTTONS];
   bool btn_up[SAPP_MAX_MOUSEBUTTONS];
   uint8_t keys_down[SIMGUI_MAX_KEY_VALUE];  // bits 0..3 or modifiers, != 0 is
                                             // key-down
   uint8_t keys_up[SIMGUI_MAX_KEY_VALUE];    // same is keys_down
-#elif defined(SOKOL_IMGUI_GLFW)
+    #elif defined(SOKOL_IMGUI_GLFW)
   bool btn_down[SIMGUI_MAX_MOUSEBUTTONS];
   bool btn_up[SIMGUI_MAX_MOUSEBUTTONS];
   uint8_t keys_down[SIMGUI_MAX_KEY_VALUE];
   uint8_t keys_up[SIMGUI_MAX_KEY_VALUE];
   GLFWwindow* win;
-#endif
+    #endif
 } _simgui_state_t;
 static _simgui_state_t _simgui;
 
-/*
-    Embedded source code compiled with:
+    /*
+        Embedded source code compiled with:
 
-    sokol-shdc -i simgui.glsl -o simgui.h -l
-   glsl330:glsl100:hlsl4:metal_macos:metal_ios:metal_sim:wgpu -b
+        sokol-shdc -i simgui.glsl -o simgui.h -l
+       glsl330:glsl100:hlsl4:metal_macos:metal_ios:metal_sim:wgpu -b
 
-    (not that for Metal and D3D11 byte code, sokol-shdc must be run
-    on macOS and Windows)
+        (not that for Metal and D3D11 byte code, sokol-shdc must be run
+        on macOS and Windows)
 
-    @vs vs
-    uniform vs_params {
-        vec2 disp_size;
-    };
-    in vec2 position;
-    in vec2 texcoord0;
-    in vec4 color0;
-    out vec2 uv;
-    out vec4 color;
-    void main() {
-        gl_Position = vec4(((position/disp_size)-0.5)*vec2(2.0,-2.0), 0.5, 1.0);
-        uv = texcoord0;
-        color = color0;
-    }
-    @end
+        @vs vs
+        uniform vs_params {
+            vec2 disp_size;
+        };
+        in vec2 position;
+        in vec2 texcoord0;
+        in vec4 color0;
+        out vec2 uv;
+        out vec4 color;
+        void main() {
+            gl_Position = vec4(((position/disp_size)-0.5)*vec2(2.0,-2.0),
+       0.5, 1.0); uv = texcoord0; color = color0;
+        }
+        @end
 
-    @fs fs
-    uniform sampler2D tex;
-    in vec2 uv;
-    in vec4 color;
-    out vec4 frag_color;
-    void main() {
-        frag_color = texture(tex, uv) * color;
-    }
-    @end
+        @fs fs
+        uniform sampler2D tex;
+        in vec2 uv;
+        in vec4 color;
+        out vec4 frag_color;
+        void main() {
+            frag_color = texture(tex, uv) * color;
+        }
+        @end
 
-    @program simgui vs fs
-*/
-#if defined(SOKOL_GLCORE33)
+        @program simgui vs fs
+    */
+    #if defined(SOKOL_GLCORE33)
 static const char _simgui_vs_source_glsl330[341] = {
     0x23, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x20, 0x33, 0x33, 0x30,
     0x0a, 0x0a, 0x75, 0x6e, 0x69, 0x66, 0x6f, 0x72, 0x6d, 0x20, 0x76, 0x65,
@@ -442,7 +458,7 @@ static const char _simgui_fs_source_glsl330[169] = {
     0x2a, 0x20, 0x63, 0x6f, 0x6c, 0x6f, 0x72, 0x3b, 0x0a, 0x7d, 0x0a, 0x0a,
     0x00,
 };
-#elif defined(SOKOL_GLES2) || defined(SOKOL_GLES3)
+    #elif defined(SOKOL_GLES2) || defined(SOKOL_GLES3)
 static const char _simgui_vs_source_glsl100[307] = {
     0x23, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x20, 0x31, 0x30, 0x30,
     0x0a, 0x0a, 0x75, 0x6e, 0x69, 0x66, 0x6f, 0x72, 0x6d, 0x20, 0x76, 0x65,
@@ -491,7 +507,7 @@ static const char _simgui_fs_source_glsl100[207] = {
     0x29, 0x20, 0x2a, 0x20, 0x63, 0x6f, 0x6c, 0x6f, 0x72, 0x3b, 0x0a, 0x7d,
     0x0a, 0x0a, 0x00,
 };
-#elif defined(SOKOL_METAL)
+    #elif defined(SOKOL_METAL)
 static const uint8_t _simgui_vs_bytecode_metal_macos[3216] = {
     0x4d, 0x54, 0x4c, 0x42, 0x01, 0x80, 0x02, 0x00, 0x04, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x90, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1624,7 +1640,7 @@ static const char _simgui_fs_source_metal_sim[470] = {
     0x74, 0x75, 0x72, 0x6e, 0x20, 0x6f, 0x75, 0x74, 0x3b, 0x0a, 0x7d, 0x0a,
     0x0a, 0x00,
 };
-#elif defined(SOKOL_D3D11)
+    #elif defined(SOKOL_D3D11)
 static const uint8_t _simgui_vs_bytecode_hlsl4[892] = {
     0x44, 0x58, 0x42, 0x43, 0x05, 0xf8, 0x0b, 0x1e, 0x7a, 0x13, 0x49, 0x07,
     0x83, 0x60, 0x2e, 0x88, 0x06, 0xfa, 0x10, 0x2e, 0x01, 0x00, 0x00, 0x00,
@@ -1756,7 +1772,7 @@ static const uint8_t _simgui_fs_bytecode_hlsl4[620] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
-#elif defined(SOKOL_WGPU)
+    #elif defined(SOKOL_WGPU)
 static const uint8_t _simgui_vs_bytecode_wgpu[1868] = {
     0x03, 0x02, 0x23, 0x07, 0x00, 0x00, 0x01, 0x00, 0x08, 0x00, 0x08, 0x00,
     0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x00, 0x02, 0x00,
@@ -1993,15 +2009,15 @@ static const uint8_t _simgui_fs_bytecode_wgpu[904] = {
     0x0a, 0x00, 0x00, 0x00, 0x18, 0x00, 0x00, 0x00, 0xfd, 0x00, 0x01, 0x00,
     0x38, 0x00, 0x01, 0x00,
 };
-#elif defined(SOKOL_DUMMY_BACKEND)
+    #elif defined(SOKOL_DUMMY_BACKEND)
 static const char* _simgui_vs_source_dummy = "";
 static const char* _simgui_fs_source_dummy = "";
-#else
-  #error \
-      "Please define one of SOKOL_GLCORE33, SOKOL_GLES2, SOKOL_GLES3, SOKOL_D3D11, SOKOL_METAL, SOKOL_WGPU or SOKOL_DUMMY_BACKEND!"
-#endif
+    #else
+      #error \
+          "Please define one of SOKOL_GLCORE33, SOKOL_GLES2, SOKOL_GLES3, SOKOL_D3D11, SOKOL_METAL, SOKOL_WGPU or SOKOL_DUMMY_BACKEND!"
+    #endif
 
-#if defined(SOKOL_IMGUI_SOKOL_APP)
+    #if defined(SOKOL_IMGUI_SOKOL_APP)
 static void _simgui_set_clipboard(void* user_data, const char* text) {
   (void)user_data;
   sapp_set_clipboard_string(text);
@@ -2012,7 +2028,7 @@ static const char* _simgui_get_clipboard(void* user_data) {
   return sapp_get_clipboard_string();
 }
 
-#elif defined(SOKOL_IMGUI_GLFW)
+    #elif defined(SOKOL_IMGUI_GLFW)
 static void _simgui_set_clipboard(void* user_data, const char* text) {
   glfwSetClipboardString((GLFWwindow*)user_data, text);
 }
@@ -2029,9 +2045,9 @@ static GLFWcursorposfun _g_PrevUserCallbackCursorPos = NULL;
 static GLFWcursorenterfun _g_PrevUserCallbackCursorEnter = NULL;
 static bool _g_InstalledCallbacks = false;
 
-#endif
+    #endif
 
-#if defined(__EMSCRIPTEN__)
+    #if defined(__EMSCRIPTEN__)
 EM_JS(int, simgui_js_is_osx, (void), {
   if (navigator.userAgent.includes('Macintosh')) {
     return 1;
@@ -2039,16 +2055,16 @@ EM_JS(int, simgui_js_is_osx, (void), {
     return 0;
   }
 });
-#endif
+    #endif
 
 static bool _simgui_is_osx(void) {
-#if defined(__EMSCRIPTEN__)
+    #if defined(__EMSCRIPTEN__)
   return simgui_js_is_osx();
-#elif defined(__APPLE__)
+    #elif defined(__APPLE__)
   return true;
-#else
+    #else
   return false;
-#endif
+    #endif
 }
 
 SOKOL_API_IMPL void simgui_setup(const simgui_desc_t* desc) {
@@ -2057,36 +2073,37 @@ SOKOL_API_IMPL void simgui_setup(const simgui_desc_t* desc) {
   _simgui.desc = *desc;
   _simgui.desc.max_vertices = _simgui_def(_simgui.desc.max_vertices, 65536);
   _simgui.desc.dpi_scale = _simgui_def(_simgui.desc.dpi_scale, 1.0f);
-#if defined(SOKOL_IMGUI_SOKOL_APP)
+    #if defined(SOKOL_IMGUI_SOKOL_APP)
   _simgui.is_osx = _simgui_is_osx();
-#elif defined(SOKOL_IMGUI_GLFW)
+    #elif defined(SOKOL_IMGUI_GLFW)
   _simgui.win = _simgui.desc.glfw_window;
 
-#endif
-/* can keep color_format, depth_format and sample_count as is,
-   since sokol_gfx.h will do its own default-value handling
-*/
+<<<<<<< HEAD
+  #endif
+        /* can keep color_format, depth_format and sample_count as is,
+           since sokol_gfx.h will do its own default-value handling
+        */
 
-/* initialize Dear ImGui */
-#if defined(__cplusplus)
-  ImGui::CreateContext();
+        /* initialize Dear ImGui */
+        #if defined(__cplusplus)
+      ImGui::CreateContext();
   ImGui::StyleColorsDark();
   ImGuiIO* io = &ImGui::GetIO();
   if (!_simgui.desc.no_default_font) {
     io->Fonts->AddFontDefault();
   }
-#else
-  igCreateContext(NULL);
+        #else
+      igCreateContext(NULL);
   igStyleColorsDark(igGetStyle());
   ImGuiIO* io = igGetIO();
   if (!_simgui.desc.no_default_font) {
     ImFontAtlas_AddFontDefault(io->Fonts, NULL);
   }
-#endif
+        #endif
   io->IniFilename = _simgui.desc.ini_filename;
   io->ConfigMacOSXBehaviors = _simgui_is_osx();
   io->BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
-#if defined(SOKOL_IMGUI_SOKOL_APP)
+        #if defined(SOKOL_IMGUI_SOKOL_APP)
   io->KeyMap[ImGuiKey_Tab] = SAPP_KEYCODE_TAB;
   io->KeyMap[ImGuiKey_LeftArrow] = SAPP_KEYCODE_LEFT;
   io->KeyMap[ImGuiKey_RightArrow] = SAPP_KEYCODE_RIGHT;
@@ -2109,7 +2126,7 @@ SOKOL_API_IMPL void simgui_setup(const simgui_desc_t* desc) {
     io->KeyMap[ImGuiKey_Y] = SAPP_KEYCODE_Y;
     io->KeyMap[ImGuiKey_Z] = SAPP_KEYCODE_Z;
   }
-#elif defined(SOKOL_IMGUI_GLFW)
+        #elif defined(SOKOL_IMGUI_GLFW)
   io->KeyMap[ImGuiKey_Tab] = GLFW_KEY_TAB;
   io->KeyMap[ImGuiKey_LeftArrow] = GLFW_KEY_LEFT;
   io->KeyMap[ImGuiKey_RightArrow] = GLFW_KEY_RIGHT;
@@ -2148,11 +2165,11 @@ SOKOL_API_IMPL void simgui_setup(const simgui_desc_t* desc) {
   _g_PrevUserCallbackCursorEnter =
       glfwSetCursorEnterCallback(_simgui.win, simgui_glfw_cursorentercallback);
   _g_InstalledCallbacks = true;
-#endif
-#if defined(SOKOL_IMGUI_SOKOL_APP) || defined(SOKOL_IMGUI_GLFW)
+        #endif
+        #if defined(SOKOL_IMGUI_SOKOL_APP) || defined(SOKOL_IMGUI_GLFW)
   io->SetClipboardTextFn = _simgui_set_clipboard;
   io->GetClipboardTextFn = _simgui_get_clipboard;
-#endif
+        #endif
 
   /* create sokol-gfx resources */
   sg_push_debug_group("sokol-imgui");
@@ -2177,13 +2194,13 @@ SOKOL_API_IMPL void simgui_setup(const simgui_desc_t* desc) {
   if (!_simgui.desc.no_default_font) {
     unsigned char* font_pixels;
     int font_width, font_height;
-#if defined(__cplusplus)
+        #if defined(__cplusplus)
     io->Fonts->GetTexDataAsRGBA32(&font_pixels, &font_width, &font_height);
-#else
+        #else
     int bytes_per_pixel;
     ImFontAtlas_GetTexDataAsRGBA32(io->Fonts, &font_pixels, &font_width,
                                    &font_height, &bytes_per_pixel);
-#endif
+        #endif
     sg_image_desc img_desc;
     memset(&img_desc, 0, sizeof(img_desc));
     img_desc.width = font_width;
@@ -2222,13 +2239,13 @@ SOKOL_API_IMPL void simgui_setup(const simgui_desc_t* desc) {
   shd_desc.fs.images[0].type = SG_IMAGETYPE_2D;
   shd_desc.fs.images[0].sampler_type = SG_SAMPLERTYPE_FLOAT;
   shd_desc.label = "sokol-imgui-shader";
-#if defined(SOKOL_GLCORE33)
+        #if defined(SOKOL_GLCORE33)
   shd_desc.vs.source = _simgui_vs_source_glsl330;
   shd_desc.fs.source = _simgui_fs_source_glsl330;
-#elif defined(SOKOL_GLES2) || defined(SOKOL_GLES3)
+        #elif defined(SOKOL_GLES2) || defined(SOKOL_GLES3)
   shd_desc.vs.source = _simgui_vs_source_glsl100;
   shd_desc.fs.source = _simgui_fs_source_glsl100;
-#elif defined(SOKOL_METAL)
+        #elif defined(SOKOL_METAL)
   shd_desc.vs.entry = "main0";
   shd_desc.fs.entry = "main0";
   switch (sg_query_backend()) {
@@ -2249,20 +2266,20 @@ SOKOL_API_IMPL void simgui_setup(const simgui_desc_t* desc) {
       shd_desc.fs.source = _simgui_fs_source_metal_sim;
       break;
   }
-#elif defined(SOKOL_D3D11)
+        #elif defined(SOKOL_D3D11)
   shd_desc.vs.byte_code = _simgui_vs_bytecode_hlsl4;
   shd_desc.vs.byte_code_size = sizeof(_simgui_vs_bytecode_hlsl4);
   shd_desc.fs.byte_code = _simgui_fs_bytecode_hlsl4;
   shd_desc.fs.byte_code_size = sizeof(_simgui_fs_bytecode_hlsl4);
-#elif defined(SOKOL_WGPU)
+        #elif defined(SOKOL_WGPU)
   shd_desc.vs.byte_code = _simgui_vs_bytecode_wgpu;
   shd_desc.vs.byte_code_size = sizeof(_simgui_vs_bytecode_wgpu);
   shd_desc.fs.byte_code = _simgui_fs_bytecode_wgpu;
   shd_desc.fs.byte_code_size = sizeof(_simgui_fs_bytecode_wgpu);
-#else
+        #else
   shd_desc.vs.source = _simgui_vs_src_dummy;
   shd_desc.fs.source = _simgui_fs_src_dummy;
-#endif
+        #endif
   _simgui.shd = sg_make_shader(&shd_desc);
 
   /* pipeline object for imgui rendering */
@@ -2297,6 +2314,191 @@ SOKOL_API_IMPL void simgui_setup(const simgui_desc_t* desc) {
   _simgui.pip = sg_make_pipeline(&pip_desc);
 
   sg_pop_debug_group();
+  == == == =
+        /* initialize Dear ImGui */
+        #if defined(__cplusplus)
+               ImGui::CreateContext();
+  ImGui::StyleColorsDark();
+  ImGuiIO* io = &ImGui::GetIO();
+  if (!_simgui.desc.no_default_font) {
+    io->Fonts->AddFontDefault();
+  }
+        #else
+               igCreateContext(NULL);
+  igStyleColorsDark(igGetStyle());
+  ImGuiIO* io = igGetIO();
+  if (!_simgui.desc.no_default_font) {
+    ImFontAtlas_AddFontDefault(io->Fonts, NULL);
+  }
+        #endif
+  io->IniFilename = _simgui.desc.ini_filename;
+  io->ConfigMacOSXBehaviors = _simgui_is_osx();
+  io->BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
+        #if !defined(SOKOL_IMGUI_NO_SOKOL_APP)
+  io->KeyMap[ImGuiKey_Tab] = SAPP_KEYCODE_TAB;
+  io->KeyMap[ImGuiKey_LeftArrow] = SAPP_KEYCODE_LEFT;
+  io->KeyMap[ImGuiKey_RightArrow] = SAPP_KEYCODE_RIGHT;
+  io->KeyMap[ImGuiKey_UpArrow] = SAPP_KEYCODE_UP;
+  io->KeyMap[ImGuiKey_DownArrow] = SAPP_KEYCODE_DOWN;
+  io->KeyMap[ImGuiKey_PageUp] = SAPP_KEYCODE_PAGE_UP;
+  io->KeyMap[ImGuiKey_PageDown] = SAPP_KEYCODE_PAGE_DOWN;
+  io->KeyMap[ImGuiKey_Home] = SAPP_KEYCODE_HOME;
+  io->KeyMap[ImGuiKey_End] = SAPP_KEYCODE_END;
+  io->KeyMap[ImGuiKey_Delete] = SAPP_KEYCODE_DELETE;
+  io->KeyMap[ImGuiKey_Backspace] = SAPP_KEYCODE_BACKSPACE;
+  io->KeyMap[ImGuiKey_Space] = SAPP_KEYCODE_SPACE;
+  io->KeyMap[ImGuiKey_Enter] = SAPP_KEYCODE_ENTER;
+  io->KeyMap[ImGuiKey_Escape] = SAPP_KEYCODE_ESCAPE;
+  if (!_simgui.desc.disable_hotkeys) {
+    io->KeyMap[ImGuiKey_A] = SAPP_KEYCODE_A;
+    io->KeyMap[ImGuiKey_C] = SAPP_KEYCODE_C;
+    io->KeyMap[ImGuiKey_V] = SAPP_KEYCODE_V;
+    io->KeyMap[ImGuiKey_X] = SAPP_KEYCODE_X;
+    io->KeyMap[ImGuiKey_Y] = SAPP_KEYCODE_Y;
+    io->KeyMap[ImGuiKey_Z] = SAPP_KEYCODE_Z;
+  }
+          #if !defined(SOKOL_IMGUI_NO_SOKOL_APP)
+  io->SetClipboardTextFn = _simgui_set_clipboard;
+  io->GetClipboardTextFn = _simgui_get_clipboard;
+          #endif
+        #endif
+
+  /* create sokol-gfx resources */
+  sg_push_debug_group("sokol-imgui");
+
+  /* NOTE: since we're in C++ mode here we can't use C99 designated init */
+  sg_buffer_desc vb_desc;
+  memset(&vb_desc, 0, sizeof(vb_desc));
+  vb_desc.usage = SG_USAGE_STREAM;
+  vb_desc.size = (size_t)_simgui.desc.max_vertices * sizeof(ImDrawVert);
+  vb_desc.label = "sokol-imgui-vertices";
+  _simgui.vbuf = sg_make_buffer(&vb_desc);
+
+  sg_buffer_desc ib_desc;
+  memset(&ib_desc, 0, sizeof(ib_desc));
+  ib_desc.type = SG_BUFFERTYPE_INDEXBUFFER;
+  ib_desc.usage = SG_USAGE_STREAM;
+  ib_desc.size = (size_t)_simgui.desc.max_vertices * 3 * sizeof(uint16_t);
+  ib_desc.label = "sokol-imgui-indices";
+  _simgui.ibuf = sg_make_buffer(&ib_desc);
+
+  /* default font texture */
+  if (!_simgui.desc.no_default_font) {
+    unsigned char* font_pixels;
+    int font_width, font_height;
+        #if defined(__cplusplus)
+    io->Fonts->GetTexDataAsRGBA32(&font_pixels, &font_width, &font_height);
+        #else
+    int bytes_per_pixel;
+    ImFontAtlas_GetTexDataAsRGBA32(io->Fonts, &font_pixels, &font_width,
+                                   &font_height, &bytes_per_pixel);
+        #endif
+    sg_image_desc img_desc;
+    memset(&img_desc, 0, sizeof(img_desc));
+    img_desc.width = font_width;
+    img_desc.height = font_height;
+    img_desc.pixel_format = SG_PIXELFORMAT_RGBA8;
+    img_desc.wrap_u = SG_WRAP_CLAMP_TO_EDGE;
+    img_desc.wrap_v = SG_WRAP_CLAMP_TO_EDGE;
+    img_desc.min_filter = SG_FILTER_LINEAR;
+    img_desc.mag_filter = SG_FILTER_LINEAR;
+    img_desc.data.subimage[0][0].ptr = font_pixels;
+    img_desc.data.subimage[0][0].size =
+        (size_t)(font_width * font_height) * sizeof(uint32_t);
+    img_desc.label = "sokol-imgui-font";
+    _simgui.img = sg_make_image(&img_desc);
+    io->Fonts->TexID = (ImTextureID)(uintptr_t)_simgui.img.id;
+  }
+
+  /* shader object for using the embedded shader source (or bytecode) */
+  sg_shader_desc shd_desc;
+  memset(&shd_desc, 0, sizeof(shd_desc));
+  shd_desc.attrs[0].name = "position";
+  shd_desc.attrs[1].name = "texcoord0";
+  shd_desc.attrs[2].name = "color0";
+  shd_desc.attrs[0].sem_name = "TEXCOORD";
+  shd_desc.attrs[0].sem_index = 0;
+  shd_desc.attrs[1].sem_name = "TEXCOORD";
+  shd_desc.attrs[1].sem_index = 1;
+  shd_desc.attrs[2].sem_name = "TEXCOORD";
+  shd_desc.attrs[2].sem_index = 2;
+  sg_shader_uniform_block_desc* ub = &shd_desc.vs.uniform_blocks[0];
+  ub->size = sizeof(_simgui_vs_params_t);
+  ub->uniforms[0].name = "vs_params";
+  ub->uniforms[0].type = SG_UNIFORMTYPE_FLOAT4;
+  ub->uniforms[0].array_count = 1;
+  shd_desc.fs.images[0].name = "tex";
+  shd_desc.fs.images[0].image_type = SG_IMAGETYPE_2D;
+  shd_desc.fs.images[0].sampler_type = SG_SAMPLERTYPE_FLOAT;
+  shd_desc.label = "sokol-imgui-shader";
+        #if defined(SOKOL_GLCORE33)
+  shd_desc.vs.source = _simgui_vs_source_glsl330;
+  shd_desc.fs.source = _simgui_fs_source_glsl330;
+        #elif defined(SOKOL_GLES2) || defined(SOKOL_GLES3)
+  shd_desc.vs.source = _simgui_vs_source_glsl100;
+  shd_desc.fs.source = _simgui_fs_source_glsl100;
+        #elif defined(SOKOL_METAL)
+  shd_desc.vs.entry = "main0";
+  shd_desc.fs.entry = "main0";
+  switch (sg_query_backend()) {
+    case SG_BACKEND_METAL_MACOS:
+      shd_desc.vs.bytecode = SG_RANGE(_simgui_vs_bytecode_metal_macos);
+      shd_desc.fs.bytecode = SG_RANGE(_simgui_fs_bytecode_metal_macos);
+      break;
+    case SG_BACKEND_METAL_IOS:
+      shd_desc.vs.bytecode = SG_RANGE(_simgui_vs_bytecode_metal_ios);
+      shd_desc.fs.bytecode = SG_RANGE(_simgui_fs_bytecode_metal_ios);
+      break;
+    default:
+      shd_desc.vs.source = _simgui_vs_source_metal_sim;
+      shd_desc.fs.source = _simgui_fs_source_metal_sim;
+      break;
+  }
+        #elif defined(SOKOL_D3D11)
+  shd_desc.vs.bytecode = SG_RANGE(_simgui_vs_bytecode_hlsl4);
+  shd_desc.fs.bytecode = SG_RANGE(_simgui_fs_bytecode_hlsl4);
+        #elif defined(SOKOL_WGPU)
+  shd_desc.vs.bytecode = SG_RANGE(_simgui_vs_bytecode_wgpu);
+  shd_desc.fs.bytecode = SG_RANGE(_simgui_fs_bytecode_wgpu);
+        #else
+  shd_desc.vs.source = _simgui_vs_src_dummy;
+  shd_desc.fs.source = _simgui_fs_src_dummy;
+        #endif
+  _simgui.shd = sg_make_shader(&shd_desc);
+
+  /* pipeline object for imgui rendering */
+  sg_pipeline_desc pip_desc;
+  memset(&pip_desc, 0, sizeof(pip_desc));
+  pip_desc.layout.buffers[0].stride = sizeof(ImDrawVert);
+  {
+    sg_vertex_attr_desc* attr = &pip_desc.layout.attrs[0];
+    attr->offset = offsetof(ImDrawVert, pos);
+    attr->format = SG_VERTEXFORMAT_FLOAT2;
+  }
+  {
+    sg_vertex_attr_desc* attr = &pip_desc.layout.attrs[1];
+    attr->offset = offsetof(ImDrawVert, uv);
+    attr->format = SG_VERTEXFORMAT_FLOAT2;
+  }
+  {
+    sg_vertex_attr_desc* attr = &pip_desc.layout.attrs[2];
+    attr->offset = offsetof(ImDrawVert, col);
+    attr->format = SG_VERTEXFORMAT_UBYTE4N;
+  }
+  pip_desc.shader = _simgui.shd;
+  pip_desc.index_type = SG_INDEXTYPE_UINT16;
+  pip_desc.sample_count = _simgui.desc.sample_count;
+  pip_desc.depth.pixel_format = _simgui.desc.depth_format;
+  pip_desc.colors[0].pixel_format = _simgui.desc.color_format;
+  pip_desc.colors[0].write_mask = SG_COLORMASK_RGB;
+  pip_desc.colors[0].blend.enabled = true;
+  pip_desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA;
+  pip_desc.colors[0].blend.dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+  pip_desc.label = "sokol-imgui-pipeline";
+  _simgui.pip = sg_make_pipeline(&pip_desc);
+
+  sg_pop_debug_group();
+>>>>>>> 75734a45574252e1e5373dfff9ba70a33f41a620
 }
 
 SOKOL_API_IMPL void simgui_shutdown(void) {
@@ -2309,11 +2511,11 @@ SOKOL_API_IMPL void simgui_shutdown(void) {
     glfwSetCursorEnterCallback(_simgui.win, _g_PrevUserCallbackCursorEnter);
     _g_InstalledCallbacks = false;
   }
-#if defined(__cplusplus)
+      #if defined(__cplusplus)
   ImGui::DestroyContext();
-#else
+      #else
   igDestroyContext(0);
-#endif
+      #endif
   /* NOTE: it's valid to call the destroy funcs with SG_INVALID_ID */
   sg_push_debug_group("sokol-imgui");
   sg_destroy_pipeline(_simgui.pip);
@@ -2324,38 +2526,38 @@ SOKOL_API_IMPL void simgui_shutdown(void) {
   sg_pop_debug_group();
 }
 
-#if defined(SOKOL_IMGUI_SOKOL_APP)
+      #if defined(SOKOL_IMGUI_SOKOL_APP)
 _SOKOL_PRIVATE void _simgui_set_imgui_modifiers(ImGuiIO* io, uint32_t mods) {
   io->KeyAlt = (mods & SAPP_MODIFIER_ALT) != 0;
   io->KeyCtrl = (mods & SAPP_MODIFIER_CTRL) != 0;
   io->KeyShift = (mods & SAPP_MODIFIER_SHIFT) != 0;
   io->KeySuper = (mods & SAPP_MODIFIER_SUPER) != 0;
 }
-#elif defined(SOKOL_IMGUI_GLFW)
+      #elif defined(SOKOL_IMGUI_GLFW)
 _SOKOL_PRIVATE void _simgui_set_imgui_modifiers(ImGuiIO* io, uint32_t mods) {
   io->KeyAlt = (mods & GLFW_MOD_ALT) != 0;
   io->KeyCtrl = (mods & GLFW_MOD_CONTROL) != 0;
   io->KeyShift = (mods & GLFW_MOD_SHIFT) != 0;
   io->KeySuper = (mods & GLFW_MOD_SUPER) != 0;
 }
-#endif
+      #endif
 
-#if defined(SOKOL_IMGUI_GLFW)
+      #if defined(SOKOL_IMGUI_GLFW)
 SOKOL_API_IMPL void simgui_new_frame(double delta_time) {
   int width, height;
   glfwGetFramebufferSize(_simgui.win, &width, &height);
-#else
+      #else
 SOKOL_API_IMPL void simgui_new_frame(int width, int height, double delta_time) {
-#endif
-#if defined(__cplusplus)
+      #endif
+      #if defined(__cplusplus)
   ImGuiIO* io = &ImGui::GetIO();
-#else
+      #else
   ImGuiIO* io = igGetIO();
-#endif
+      #endif
   io->DisplaySize.x = ((float)width) / _simgui.desc.dpi_scale;
   io->DisplaySize.y = ((float)height) / _simgui.desc.dpi_scale;
   io->DeltaTime = (float)delta_time;
-#if defined(SOKOL_IMGUI_SOKOL_APP)
+      #if defined(SOKOL_IMGUI_SOKOL_APP)
   for (int i = 0; i < SAPP_MAX_MOUSEBUTTONS; i++) {
     if (_simgui.btn_down[i]) {
       _simgui.btn_down[i] = false;
@@ -2382,7 +2584,7 @@ SOKOL_API_IMPL void simgui_new_frame(int width, int height, double delta_time) {
   if (!io->WantTextInput && sapp_keyboard_shown()) {
     sapp_show_keyboard(false);
   }
-#elif defined(SOKOL_IMGUI_GLFW)
+      #elif defined(SOKOL_IMGUI_GLFW)
   for (int i = 0; i < SIMGUI_MAX_MOUSEBUTTONS; i++) {
     if (_simgui.btn_down[i]) {
       _simgui.btn_down[i] = false;
@@ -2403,24 +2605,24 @@ SOKOL_API_IMPL void simgui_new_frame(int width, int height, double delta_time) {
       _simgui.keys_up[i] = 0;
     }
   }
-#endif
-#if defined(__cplusplus)
+      #endif
+      #if defined(__cplusplus)
   ImGui::NewFrame();
-#else
+      #else
   igNewFrame();
-#endif
+      #endif
 }
 
 SOKOL_API_IMPL void simgui_render(void) {
-#if defined(__cplusplus)
+      #if defined(__cplusplus)
   ImGui::Render();
   ImDrawData* draw_data = ImGui::GetDrawData();
   ImGuiIO* io = &ImGui::GetIO();
-#else
+      #else
   igRender();
   ImDrawData* draw_data = igGetDrawData();
   ImGuiIO* io = igGetIO();
-#endif
+      #endif
   if (0 == draw_data) {
     return;
   }
@@ -2453,18 +2655,19 @@ SOKOL_API_IMPL void simgui_render(void) {
   for (int cl_index = 0; cl_index < draw_data->CmdListsCount; cl_index++) {
     ImDrawList* cl = draw_data->CmdLists[cl_index];
 
-/* append vertices and indices to buffers, record start offsets in draw state */
-#if defined(__cplusplus)
+      /* append vertices and indices to buffers, record start offsets in draw
+       * state */
+      #if defined(__cplusplus)
     const int vtx_size = cl->VtxBuffer.size() * sizeof(ImDrawVert);
     const int idx_size = cl->IdxBuffer.size() * sizeof(ImDrawIdx);
     const ImDrawVert* vtx_ptr = &cl->VtxBuffer.front();
     const ImDrawIdx* idx_ptr = &cl->IdxBuffer.front();
-#else
+      #else
     const int vtx_size = cl->VtxBuffer.Size * sizeof(ImDrawVert);
     const int idx_size = cl->IdxBuffer.Size * sizeof(ImDrawIdx);
     const ImDrawVert* vtx_ptr = cl->VtxBuffer.Data;
     const ImDrawIdx* idx_ptr = cl->IdxBuffer.Data;
-#endif
+      #endif
     if (vtx_ptr) {
       vb_offset = sg_append_buffer(bind.vertex_buffers[0], vtx_ptr, vtx_size);
     }
@@ -2484,11 +2687,11 @@ SOKOL_API_IMPL void simgui_render(void) {
     sg_apply_bindings(&bind);
 
     int base_element = 0;
-#if defined(__cplusplus)
+      #if defined(__cplusplus)
     const int num_cmds = cl->CmdBuffer.size();
-#else
+      #else
     const int num_cmds = cl->CmdBuffer.Size;
-#endif
+      #endif
     uint32_t vtx_offset = 0;
     for (int cmd_index = 0; cmd_index < num_cmds; cmd_index++) {
       ImDrawCmd* pcmd = &cl->CmdBuffer.Data[cmd_index];
@@ -2506,277 +2709,378 @@ SOKOL_API_IMPL void simgui_render(void) {
           bind.fs_images[0].id = (uint32_t)(uintptr_t)tex_id;
           bind.vertex_buffer_offsets[0] = vb_offset + vtx_offset;
           sg_apply_bindings(&bind);
+          /* render the ImGui command list */
+          sg_push_debug_group("sokol-imgui");
+
+          const float dpi_scale = _simgui.desc.dpi_scale;
+          const int fb_width = (int)(io->DisplaySize.x * dpi_scale);
+          const int fb_height = (int)(io->DisplaySize.y * dpi_scale);
+          sg_apply_viewport(0, 0, fb_width, fb_height, true);
+          sg_apply_scissor_rect(0, 0, fb_width, fb_height, true);
+
+          sg_apply_pipeline(_simgui.pip);
+          _simgui_vs_params_t vs_params;
+          memset((void*)&vs_params, 0, sizeof(vs_params));
+          vs_params.disp_size.x = io->DisplaySize.x;
+          vs_params.disp_size.y = io->DisplaySize.y;
+          sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, SG_RANGE_REF(vs_params));
+          sg_bindings bind;
+          memset((void*)&bind, 0, sizeof(bind));
+          bind.vertex_buffers[0] = _simgui.vbuf;
+          bind.index_buffer = _simgui.ibuf;
+          ImTextureID tex_id = io->Fonts->TexID;
+          bind.fs_images[0].id = (uint32_t)(uintptr_t)tex_id;
+          int vb_offset = 0;
+          int ib_offset = 0;
+          for (int cl_index = 0; cl_index < draw_data->CmdListsCount;
+               cl_index++) {
+            ImDrawList* cl = draw_data->CmdLists[cl_index];
+
+      /* append vertices and indices to buffers, record start offsets in
+       * draw state */
+      #if defined(__cplusplus)
+            const size_t vtx_size = cl->VtxBuffer.size() * sizeof(ImDrawVert);
+            const size_t idx_size = cl->IdxBuffer.size() * sizeof(ImDrawIdx);
+            const ImDrawVert* vtx_ptr = &cl->VtxBuffer.front();
+            const ImDrawIdx* idx_ptr = &cl->IdxBuffer.front();
+      #else
+            const size_t vtx_size =
+                (size_t)cl->VtxBuffer.Size * sizeof(ImDrawVert);
+            const size_t idx_size =
+                (size_t)cl->IdxBuffer.Size * sizeof(ImDrawIdx);
+            const ImDrawVert* vtx_ptr = cl->VtxBuffer.Data;
+            const ImDrawIdx* idx_ptr = cl->IdxBuffer.Data;
+      #endif
+            if (vtx_ptr) {
+              const sg_range vtx_range = {vtx_ptr, vtx_size};
+              vb_offset = sg_append_buffer(bind.vertex_buffers[0], &vtx_range);
+            }
+            if (idx_ptr) {
+              const sg_range idx_range = {idx_ptr, idx_size};
+              ib_offset = sg_append_buffer(bind.index_buffer, &idx_range);
+            }
+            /* don't render anything if the buffer is in overflow state (this is
+               also checked internally in sokol_gfx, draw calls that attempt to
+               draw with overflowed buffers will be silently dropped)
+            */
+            if (sg_query_buffer_overflow(bind.vertex_buffers[0]) ||
+                sg_query_buffer_overflow(bind.index_buffer)) {
+              break;
+            }
+            bind.vertex_buffer_offsets[0] = vb_offset;
+            bind.index_buffer_offset = ib_offset;
+            sg_apply_bindings(&bind);
+
+            int base_element = 0;
+      #if defined(__cplusplus)
+            const int num_cmds = cl->CmdBuffer.size();
+      #else
+            const int num_cmds = cl->CmdBuffer.Size;
+      #endif
+            uint32_t vtx_offset = 0;
+            for (int cmd_index = 0; cmd_index < num_cmds; cmd_index++) {
+              ImDrawCmd* pcmd = &cl->CmdBuffer.Data[cmd_index];
+              if (pcmd->UserCallback) {
+                pcmd->UserCallback(cl, pcmd);
+                // need to re-apply all state after calling a user callback
+                sg_apply_viewport(0, 0, fb_width, fb_height, true);
+                sg_apply_pipeline(_simgui.pip);
+                sg_apply_uniforms(SG_SHADERSTAGE_VS, 0,
+                                  SG_RANGE_REF(vs_params));
+                sg_apply_bindings(&bind);
+              } else {
+                if ((tex_id != pcmd->TextureId) ||
+                    (vtx_offset != pcmd->VtxOffset)) {
+                  tex_id = pcmd->TextureId;
+                  vtx_offset = pcmd->VtxOffset;
+                  bind.fs_images[0].id = (uint32_t)(uintptr_t)tex_id;
+                  bind.vertex_buffer_offsets[0] =
+                      vb_offset + (int)(pcmd->VtxOffset * sizeof(ImDrawVert));
+                  sg_apply_bindings(&bind);
+                }
+                const int scissor_x = (int)(pcmd->ClipRect.x * dpi_scale);
+                const int scissor_y = (int)(pcmd->ClipRect.y * dpi_scale);
+                const int scissor_w =
+                    (int)((pcmd->ClipRect.z - pcmd->ClipRect.x) * dpi_scale);
+                const int scissor_h =
+                    (int)((pcmd->ClipRect.w - pcmd->ClipRect.y) * dpi_scale);
+                sg_apply_scissor_rect(scissor_x, scissor_y, scissor_w,
+                                      scissor_h, true);
+                sg_draw(base_element, (int)pcmd->ElemCount, 1);
+              }
+              base_element += (int)pcmd->ElemCount;
+            }
+            const int scissor_x = (int)(pcmd->ClipRect.x * dpi_scale);
+            const int scissor_y = (int)(pcmd->ClipRect.y * dpi_scale);
+            const int scissor_w =
+                (int)((pcmd->ClipRect.z - pcmd->ClipRect.x) * dpi_scale);
+            const int scissor_h =
+                (int)((pcmd->ClipRect.w - pcmd->ClipRect.y) * dpi_scale);
+            sg_apply_scissor_rect(scissor_x, scissor_y, scissor_w, scissor_h,
+                                  true);
+            sg_draw(base_element, pcmd->ElemCount, 1);
+          }
+          base_element += pcmd->ElemCount;
         }
-        const int scissor_x = (int)(pcmd->ClipRect.x * dpi_scale);
-        const int scissor_y = (int)(pcmd->ClipRect.y * dpi_scale);
-        const int scissor_w =
-            (int)((pcmd->ClipRect.z - pcmd->ClipRect.x) * dpi_scale);
-        const int scissor_h =
-            (int)((pcmd->ClipRect.w - pcmd->ClipRect.y) * dpi_scale);
-        sg_apply_scissor_rect(scissor_x, scissor_y, scissor_w, scissor_h, true);
-        sg_draw(base_element, pcmd->ElemCount, 1);
       }
-      base_element += pcmd->ElemCount;
+      sg_apply_viewport(0, 0, fb_width, fb_height, true);
+      sg_apply_scissor_rect(0, 0, fb_width, fb_height, true);
+      sg_pop_debug_group();
     }
-  }
-  sg_apply_viewport(0, 0, fb_width, fb_height, true);
-  sg_apply_scissor_rect(0, 0, fb_width, fb_height, true);
-  sg_pop_debug_group();
-}
 
-#if defined(SOKOL_IMGUI_SOKOL_APP)
-_SOKOL_PRIVATE bool _simgui_is_ctrl(uint32_t modifiers) {
-  if (_simgui.is_osx) {
-    return 0 != (modifiers & SAPP_MODIFIER_SUPER);
-  } else {
-    return 0 != (modifiers & SAPP_MODIFIER_CTRL);
-  }
-}
+      #if defined(SOKOL_IMGUI_SOKOL_APP)
+    _SOKOL_PRIVATE bool _simgui_is_ctrl(uint32_t modifiers) {
+      if (_simgui.is_osx) {
+        return 0 != (modifiers & SAPP_MODIFIER_SUPER);
+      } else {
+        return 0 != (modifiers & SAPP_MODIFIER_CTRL);
+      }
+    }
 
-SOKOL_API_IMPL bool simgui_handle_event(const sapp_event* ev) {
-  const float dpi_scale = _simgui.desc.dpi_scale;
-  #if defined(__cplusplus)
-  ImGuiIO* io = &ImGui::GetIO();
-  #else
-  ImGuiIO* io = igGetIO();
-  #endif
-  _simgui_set_imgui_modifiers(io, ev->modifiers);
-  switch (ev->type) {
-    case SAPP_EVENTTYPE_MOUSE_DOWN:
-      io->MousePos.x = ev->mouse_x / dpi_scale;
-      io->MousePos.y = ev->mouse_y / dpi_scale;
-      if (ev->mouse_button < 3) {
-        _simgui.btn_down[ev->mouse_button] = true;
+    SOKOL_API_IMPL bool simgui_handle_event(const sapp_event* ev) {
+      const float dpi_scale = _simgui.desc.dpi_scale;
+        #if defined(__cplusplus)
+      ImGuiIO* io = &ImGui::GetIO();
+        #else
+      ImGuiIO* io = igGetIO();
+        #endif
+      _simgui_set_imgui_modifiers(io, ev->modifiers);
+      switch (ev->type) {
+        case SAPP_EVENTTYPE_MOUSE_DOWN:
+          io->MousePos.x = ev->mouse_x / dpi_scale;
+          io->MousePos.y = ev->mouse_y / dpi_scale;
+          if (ev->mouse_button < 3) {
+            _simgui.btn_down[ev->mouse_button] = true;
+          }
+          break;
+        case SAPP_EVENTTYPE_MOUSE_UP:
+          io->MousePos.x = ev->mouse_x / dpi_scale;
+          io->MousePos.y = ev->mouse_y / dpi_scale;
+          if (ev->mouse_button < 3) {
+            _simgui.btn_up[ev->mouse_button] = true;
+          }
+          break;
+        case SAPP_EVENTTYPE_MOUSE_MOVE:
+          io->MousePos.x = ev->mouse_x / dpi_scale;
+          io->MousePos.y = ev->mouse_y / dpi_scale;
+          break;
+        case SAPP_EVENTTYPE_MOUSE_ENTER:
+        case SAPP_EVENTTYPE_MOUSE_LEAVE:
+          for (int i = 0; i < 3; i++) {
+            _simgui.btn_down[i] = false;
+            _simgui.btn_up[i] = false;
+            io->MouseDown[i] = false;
+          }
+          break;
+        case SAPP_EVENTTYPE_MOUSE_SCROLL:
+          io->MouseWheelH = ev->scroll_x;
+          io->MouseWheel = ev->scroll_y;
+          break;
+        case SAPP_EVENTTYPE_TOUCHES_BEGAN:
+          _simgui.btn_down[0] = true;
+          io->MousePos.x = ev->touches[0].pos_x / dpi_scale;
+          io->MousePos.y = ev->touches[0].pos_y / dpi_scale;
+          break;
+        case SAPP_EVENTTYPE_TOUCHES_MOVED:
+          io->MousePos.x = ev->touches[0].pos_x / dpi_scale;
+          io->MousePos.y = ev->touches[0].pos_y / dpi_scale;
+          break;
+        case SAPP_EVENTTYPE_TOUCHES_ENDED:
+          _simgui.btn_up[0] = true;
+          io->MousePos.x = ev->touches[0].pos_x / dpi_scale;
+          io->MousePos.y = ev->touches[0].pos_y / dpi_scale;
+          break;
+        case SAPP_EVENTTYPE_TOUCHES_CANCELLED:
+          _simgui.btn_up[0] = _simgui.btn_down[0] = false;
+          break;
+        case SAPP_EVENTTYPE_KEY_DOWN:
+          /* intercept Ctrl-V, this is handled via EVENTTYPE_CLIPBOARD_PASTED */
+          if (_simgui_is_ctrl(ev->modifiers) &&
+              (ev->key_code == SAPP_KEYCODE_V)) {
+            break;
+          }
+          /* on web platform, don't forward Ctrl-X, Ctrl-V to the browser */
+          if (_simgui_is_ctrl(ev->modifiers) &&
+              (ev->key_code == SAPP_KEYCODE_X)) {
+            sapp_consume_event();
+          }
+          if (_simgui_is_ctrl(ev->modifiers) &&
+              (ev->key_code == SAPP_KEYCODE_C)) {
+            sapp_consume_event();
+          }
+          _simgui.keys_down[ev->key_code] = 0x80 | (uint8_t)ev->modifiers;
+          break;
+        case SAPP_EVENTTYPE_KEY_UP:
+          /* intercept Ctrl-V, this is handled via EVENTTYPE_CLIPBOARD_PASTED */
+          if (_simgui_is_ctrl(ev->modifiers) &&
+              (ev->key_code == SAPP_KEYCODE_V)) {
+            break;
+          }
+          /* on web platform, don't forward Ctrl-X, Ctrl-V to the browser */
+          if (_simgui_is_ctrl(ev->modifiers) &&
+              (ev->key_code == SAPP_KEYCODE_X)) {
+            sapp_consume_event();
+          }
+          if (_simgui_is_ctrl(ev->modifiers) &&
+              (ev->key_code == SAPP_KEYCODE_C)) {
+            sapp_consume_event();
+          }
+          _simgui.keys_up[ev->key_code] = 0x80 | (uint8_t)ev->modifiers;
+          break;
+        case SAPP_EVENTTYPE_CHAR:
+          /* on some platforms, special keys may be reported as
+             characters, which may confuse some ImGui widgets,
+             drop those, also don't forward characters if some
+             modifiers have been pressed
+          */
+          if ((ev->char_code >= 32) && (ev->char_code != 127) &&
+              (0 == (ev->modifiers & (SAPP_MODIFIER_ALT | SAPP_MODIFIER_CTRL |
+                                      SAPP_MODIFIER_SUPER)))) {
+        #if defined(__cplusplus)
+            io->AddInputCharacter((ImWchar)ev->char_code);
+        #else
+            ImGuiIO_AddInputCharacter(io, (ImWchar)ev->char_code);
+        #endif
+          }
+          break;
+        case SAPP_EVENTTYPE_CLIPBOARD_PASTED:
+          /* simulate a Ctrl-V key down/up */
+          _simgui.keys_down[SAPP_KEYCODE_V] = _simgui.keys_up[SAPP_KEYCODE_V] =
+              (uint8_t)(0x80 | (_simgui.is_osx ? SAPP_MODIFIER_SUPER
+                                               : SAPP_MODIFIER_CTRL));
+          break;
+        default:
+          break;
       }
-      break;
-    case SAPP_EVENTTYPE_MOUSE_UP:
-      io->MousePos.x = ev->mouse_x / dpi_scale;
-      io->MousePos.y = ev->mouse_y / dpi_scale;
-      if (ev->mouse_button < 3) {
-        _simgui.btn_up[ev->mouse_button] = true;
+      return io->WantCaptureKeyboard || io->WantCaptureMouse;
+    }
+      #elif defined(SOKOL_IMGUI_GLFW)
+    _SOKOL_PRIVATE bool _simgui_is_ctrl(uint32_t modifiers) {
+      if (_simgui.is_osx) {
+        return 0 != (modifiers & GLFW_MOD_SUPER);
+      } else {
+        return 0 != (modifiers & GLFW_MOD_CONTROL);
       }
-      break;
-    case SAPP_EVENTTYPE_MOUSE_MOVE:
-      io->MousePos.x = ev->mouse_x / dpi_scale;
-      io->MousePos.y = ev->mouse_y / dpi_scale;
-      break;
-    case SAPP_EVENTTYPE_MOUSE_ENTER:
-    case SAPP_EVENTTYPE_MOUSE_LEAVE:
-      for (int i = 0; i < 3; i++) {
+    }
+    SOKOL_API_IMPL void simgui_glfw_mousebuttoncallback(
+        GLFWwindow * win, int button, int action, int mods) {
+      if (_g_PrevUserCallbackMousebutton != NULL) {
+        _g_PrevUserCallbackMousebutton(win, button, action, mods);
+      }
+      if (button < 3) {
+        switch (action) {
+          case GLFW_PRESS: {
+            _simgui.btn_down[button] = true;
+          } break;
+
+          case GLFW_RELEASE: {
+            _simgui.btn_up[button] = true;
+          } break;
+        }
+      }
+    }
+    SOKOL_API_IMPL void simgui_glfw_scrollcallback(
+        GLFWwindow * win, double xoffset, double yoffset) {
+      if (_g_PrevUserCallbackScroll != NULL) {
+        _g_PrevUserCallbackScroll(win, xoffset, yoffset);
+      }
+      ImGuiIO* io = &ImGui::GetIO();
+      io->MouseWheel += static_cast<float>(yoffset);
+      io->MouseWheelH += static_cast<float>(xoffset);
+    }
+    SOKOL_API_IMPL void simgui_glfw_keycallback(
+        GLFWwindow * win, int key, int scancode, int action, int mods) {
+      if (_g_PrevUserCallbackKey != NULL) {
+        _g_PrevUserCallbackKey(win, key, scancode, action, mods);
+      }
+      ImGuiIO* io = &ImGui::GetIO();
+      switch (action) {
+        case GLFW_PRESS: {
+          /* intercept Ctrl-V, this is handled via EVENTTYPE_CLIPBOARD_PASTED */
+          if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_V)) {
+            break;
+          }
+          /* on web platform, don't forward Ctrl-X, Ctrl-V to the browser */
+          if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_X)) {
+            break;
+          }
+          if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_C)) {
+            break;
+          }
+          _simgui.keys_down[key] = 0x80 | (uint8_t)mods;
+          io->KeysDown[key] = true;
+          break;
+        }
+        case GLFW_RELEASE: {
+          /* intercept Ctrl-V, this is handled via EVENTTYPE_CLIPBOARD_PASTED */
+          if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_V)) {
+            break;
+          }
+          /* on web platform, don't forward Ctrl-X, Ctrl-V to the browser */
+          if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_X)) {
+            break;
+          }
+          if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_C)) {
+            break;
+          }
+          _simgui.keys_up[key] = 0x80 | (uint8_t)mods;
+          io->KeysDown[key] = false;
+
+          break;
+        }
+        default:
+          break;
+      }
+
+      io->KeyCtrl = io->KeysDown[GLFW_KEY_LEFT_CONTROL] ||
+                    io->KeysDown[GLFW_KEY_RIGHT_CONTROL];
+      io->KeyAlt =
+          io->KeysDown[GLFW_KEY_LEFT_ALT] || io->KeysDown[GLFW_KEY_RIGHT_ALT];
+      io->KeyShift = io->KeysDown[GLFW_KEY_LEFT_SHIFT] ||
+                     io->KeysDown[GLFW_KEY_RIGHT_SHIFT];
+        #ifdef _WIN32
+      io->KeySuper = false;
+        #else
+      io->KeySuper = io->KeysDown[GLFW_KEY_LEFT_SUPER] ||
+                     io->KeysDown[GLFW_KEY_RIGHT_SUPER];
+        #endif
+    }
+
+    SOKOL_API_IMPL void simgui_glfw_charcallback(GLFWwindow * win,
+                                                 unsigned int c) {
+      if (_g_PrevUserCallbackChar != NULL) {
+        _g_PrevUserCallbackChar(win, c);
+      }
+      ImGuiIO* io = &ImGui::GetIO();
+        #if defined(__cplusplus)
+      io->AddInputCharacter(c);
+        #else
+      ImGuiIO_AddInputCharacter(io, c);
+        #endif
+    }
+
+    SOKOL_API_IMPL void simgui_glfw_mouseposcallback(GLFWwindow * win,
+                                                     double xpos, double ypos) {
+      if (_g_PrevUserCallbackCursorPos != NULL) {
+        _g_PrevUserCallbackCursorPos(win, xpos, ypos);
+      }
+      ImGuiIO* io = &ImGui::GetIO();
+      io->MousePos.x = static_cast<float>(xpos);
+      io->MousePos.y = static_cast<float>(ypos);
+    }
+
+    SOKOL_API_IMPL void simgui_glfw_cursorentercallback(GLFWwindow * win,
+                                                        int entered) {
+      if (_g_PrevUserCallbackCursorEnter != NULL) {
+        _g_PrevUserCallbackCursorEnter(win, entered);
+      }
+      ImGuiIO* io = &ImGui::GetIO();
+      for (uint32_t i = 0; i < 3; i++) {
         _simgui.btn_down[i] = false;
         _simgui.btn_up[i] = false;
         io->MouseDown[i] = false;
       }
-      break;
-    case SAPP_EVENTTYPE_MOUSE_SCROLL:
-      io->MouseWheelH = ev->scroll_x;
-      io->MouseWheel = ev->scroll_y;
-      break;
-    case SAPP_EVENTTYPE_TOUCHES_BEGAN:
-      _simgui.btn_down[0] = true;
-      io->MousePos.x = ev->touches[0].pos_x / dpi_scale;
-      io->MousePos.y = ev->touches[0].pos_y / dpi_scale;
-      break;
-    case SAPP_EVENTTYPE_TOUCHES_MOVED:
-      io->MousePos.x = ev->touches[0].pos_x / dpi_scale;
-      io->MousePos.y = ev->touches[0].pos_y / dpi_scale;
-      break;
-    case SAPP_EVENTTYPE_TOUCHES_ENDED:
-      _simgui.btn_up[0] = true;
-      io->MousePos.x = ev->touches[0].pos_x / dpi_scale;
-      io->MousePos.y = ev->touches[0].pos_y / dpi_scale;
-      break;
-    case SAPP_EVENTTYPE_TOUCHES_CANCELLED:
-      _simgui.btn_up[0] = _simgui.btn_down[0] = false;
-      break;
-    case SAPP_EVENTTYPE_KEY_DOWN:
-      /* intercept Ctrl-V, this is handled via EVENTTYPE_CLIPBOARD_PASTED */
-      if (_simgui_is_ctrl(ev->modifiers) && (ev->key_code == SAPP_KEYCODE_V)) {
-        break;
-      }
-      /* on web platform, don't forward Ctrl-X, Ctrl-V to the browser */
-      if (_simgui_is_ctrl(ev->modifiers) && (ev->key_code == SAPP_KEYCODE_X)) {
-        sapp_consume_event();
-      }
-      if (_simgui_is_ctrl(ev->modifiers) && (ev->key_code == SAPP_KEYCODE_C)) {
-        sapp_consume_event();
-      }
-      _simgui.keys_down[ev->key_code] = 0x80 | (uint8_t)ev->modifiers;
-      break;
-    case SAPP_EVENTTYPE_KEY_UP:
-      /* intercept Ctrl-V, this is handled via EVENTTYPE_CLIPBOARD_PASTED */
-      if (_simgui_is_ctrl(ev->modifiers) && (ev->key_code == SAPP_KEYCODE_V)) {
-        break;
-      }
-      /* on web platform, don't forward Ctrl-X, Ctrl-V to the browser */
-      if (_simgui_is_ctrl(ev->modifiers) && (ev->key_code == SAPP_KEYCODE_X)) {
-        sapp_consume_event();
-      }
-      if (_simgui_is_ctrl(ev->modifiers) && (ev->key_code == SAPP_KEYCODE_C)) {
-        sapp_consume_event();
-      }
-      _simgui.keys_up[ev->key_code] = 0x80 | (uint8_t)ev->modifiers;
-      break;
-    case SAPP_EVENTTYPE_CHAR:
-      /* on some platforms, special keys may be reported as
-         characters, which may confuse some ImGui widgets,
-         drop those, also don't forward characters if some
-         modifiers have been pressed
-      */
-      if ((ev->char_code >= 32) && (ev->char_code != 127) &&
-          (0 == (ev->modifiers & (SAPP_MODIFIER_ALT | SAPP_MODIFIER_CTRL |
-                                  SAPP_MODIFIER_SUPER)))) {
-  #if defined(__cplusplus)
-        io->AddInputCharacter((ImWchar)ev->char_code);
-  #else
-        ImGuiIO_AddInputCharacter(io, (ImWchar)ev->char_code);
-  #endif
-      }
-      break;
-    case SAPP_EVENTTYPE_CLIPBOARD_PASTED:
-      /* simulate a Ctrl-V key down/up */
-      _simgui.keys_down[SAPP_KEYCODE_V] = _simgui.keys_up[SAPP_KEYCODE_V] =
-          (uint8_t)(0x80 | (_simgui.is_osx ? SAPP_MODIFIER_SUPER
-                                           : SAPP_MODIFIER_CTRL));
-      break;
-    default:
-      break;
-  }
-  return io->WantCaptureKeyboard || io->WantCaptureMouse;
-}
-#elif defined(SOKOL_IMGUI_GLFW)
-_SOKOL_PRIVATE bool _simgui_is_ctrl(uint32_t modifiers) {
-  if (_simgui.is_osx) {
-    return 0 != (modifiers & GLFW_MOD_SUPER);
-  } else {
-    return 0 != (modifiers & GLFW_MOD_CONTROL);
-  }
-}
-SOKOL_API_IMPL void simgui_glfw_mousebuttoncallback(GLFWwindow* win,
-                                                    int button,
-                                                    int action,
-                                                    int mods) {
-  if (_g_PrevUserCallbackMousebutton != NULL) {
-    _g_PrevUserCallbackMousebutton(win, button, action, mods);
-  }
-  if (button < 3) {
-    switch (action) {
-      case GLFW_PRESS: {
-        _simgui.btn_down[button] = true;
-      } break;
-
-      case GLFW_RELEASE: {
-        _simgui.btn_up[button] = true;
-      } break;
     }
-  }
-}
-SOKOL_API_IMPL void simgui_glfw_scrollcallback(GLFWwindow* win,
-                                               double xoffset,
-                                               double yoffset) {
-  if (_g_PrevUserCallbackScroll != NULL) {
-    _g_PrevUserCallbackScroll(win, xoffset, yoffset);
-  }
-  ImGuiIO* io = &ImGui::GetIO();
-  io->MouseWheel += static_cast<float>(yoffset);
-  io->MouseWheelH += static_cast<float>(xoffset);
-}
-SOKOL_API_IMPL void simgui_glfw_keycallback(GLFWwindow* win,
-                                            int key,
-                                            int scancode,
-                                            int action,
-                                            int mods) {
-  if (_g_PrevUserCallbackKey != NULL) {
-    _g_PrevUserCallbackKey(win, key, scancode, action, mods);
-  }
-  ImGuiIO* io = &ImGui::GetIO();
-  switch (action) {
-    case GLFW_PRESS: {
-      /* intercept Ctrl-V, this is handled via EVENTTYPE_CLIPBOARD_PASTED */
-      if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_V)) {
-        break;
-      }
-      /* on web platform, don't forward Ctrl-X, Ctrl-V to the browser */
-      if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_X)) {
-        break;
-      }
-      if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_C)) {
-        break;
-      }
-      _simgui.keys_down[key] = 0x80 | (uint8_t)mods;
-      io->KeysDown[key] = true;
-      break;
-    }
-    case GLFW_RELEASE: {
-      /* intercept Ctrl-V, this is handled via EVENTTYPE_CLIPBOARD_PASTED */
-      if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_V)) {
-        break;
-      }
-      /* on web platform, don't forward Ctrl-X, Ctrl-V to the browser */
-      if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_X)) {
-        break;
-      }
-      if (_simgui_is_ctrl(mods) && (key == GLFW_KEY_C)) {
-        break;
-      }
-      _simgui.keys_up[key] = 0x80 | (uint8_t)mods;
-      io->KeysDown[key] = false;
+      #endif
 
-      break;
-    }
-    default:
-      break;
-  }
-
-  io->KeyCtrl = io->KeysDown[GLFW_KEY_LEFT_CONTROL] ||
-                io->KeysDown[GLFW_KEY_RIGHT_CONTROL];
-  io->KeyAlt =
-      io->KeysDown[GLFW_KEY_LEFT_ALT] || io->KeysDown[GLFW_KEY_RIGHT_ALT];
-  io->KeyShift =
-      io->KeysDown[GLFW_KEY_LEFT_SHIFT] || io->KeysDown[GLFW_KEY_RIGHT_SHIFT];
-  #ifdef _WIN32
-  io->KeySuper = false;
-  #else
-  io->KeySuper =
-      io->KeysDown[GLFW_KEY_LEFT_SUPER] || io->KeysDown[GLFW_KEY_RIGHT_SUPER];
-  #endif
-}
-
-SOKOL_API_IMPL void simgui_glfw_charcallback(GLFWwindow* win, unsigned int c) {
-  if (_g_PrevUserCallbackChar != NULL) {
-    _g_PrevUserCallbackChar(win, c);
-  }
-  ImGuiIO* io = &ImGui::GetIO();
-  #if defined(__cplusplus)
-  io->AddInputCharacter(c);
-  #else
-  ImGuiIO_AddInputCharacter(io, c);
-  #endif
-}
-
-SOKOL_API_IMPL void simgui_glfw_mouseposcallback(GLFWwindow* win,
-                                                 double xpos,
-                                                 double ypos) {
-  if (_g_PrevUserCallbackCursorPos != NULL) {
-    _g_PrevUserCallbackCursorPos(win, xpos, ypos);
-  }
-  ImGuiIO* io = &ImGui::GetIO();
-  io->MousePos.x = static_cast<float>(xpos);
-  io->MousePos.y = static_cast<float>(ypos);
-}
-
-SOKOL_API_IMPL void simgui_glfw_cursorentercallback(GLFWwindow* win,
-                                                    int entered) {
-  if (_g_PrevUserCallbackCursorEnter != NULL) {
-    _g_PrevUserCallbackCursorEnter(win, entered);
-  }
-  ImGuiIO* io = &ImGui::GetIO();
-  for (uint32_t i = 0; i < 3; i++) {
-    _simgui.btn_down[i] = false;
-    _simgui.btn_up[i] = false;
-    io->MouseDown[i] = false;
-  }
-}
-#endif
-
-#endif /* SOKOL_IMPL */
+    #endif /* SOKOL_IMPL */
